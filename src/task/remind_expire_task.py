@@ -1,0 +1,98 @@
+from datetime import date
+from typing import List, Optional
+
+from utils.color import red, warn
+from utils.dateattr import DateAttr
+from utils.jira import ProjectRemindConfig, ProjectRemindConfigUtil, ProjectUtil
+
+dateattr = DateAttr()
+
+
+def gene_today_unfinished_tasks_str(today_unfinished_tasks):
+    """生成今天未完成任务的数据字符串"""
+    return "\n".join(
+        [
+            f"> [{i + 1}] "
+            f"{task['name']} "
+            f"<@{task['assignee']}> "
+            f"{task['duedate']} {red(task['expired']) if task['expired'] == '已过期' else warn(task['expired'])}"
+            for i, task in enumerate(today_unfinished_tasks)
+        ]
+    )
+
+
+def gene_spirnt_message(active_sprint) -> Optional[str]:
+    # 获取子任务
+    tasks = active_sprint.sample_tasks
+    # 本周待完成任务
+    todo_tasks = [
+        task
+        for task in tasks
+        if task["status"] != "已完成"
+        and task["duedate"] is not None
+        and task["duedate"] <= dateattr.lastday_of_week.strftime("%Y-%m-%d")
+    ]
+    # 今天未完成的任务
+    today_unfinished_tasks = [
+        {
+            "name": task["issueName"].replace(" ", ""),
+            "assignee": task["assignee"],
+            "duedate": task["duedate"][5:],  # 日期不带年份
+            "expired": "已过期"
+            if task["duedate"] < date.today().strftime("%Y-%m-%d")
+            else "今天到期",
+        }
+        for task in todo_tasks
+        if task["duedate"] <= date.today().strftime("%Y-%m-%d")
+    ]
+
+    # 任务未设置到期日个数提醒
+    no_duedate_tasks_cnt_str = ""
+    has_duedate_task_cnt = sum([1 for task in tasks if task["duedate"] is not None])
+    if has_duedate_task_cnt < len(tasks):
+        no_duedate_tasks_cnt_str = warn(
+            f"共{len(tasks)}个任务, 还有{len(tasks) - has_duedate_task_cnt}个任务未设置到期日！"
+        )
+
+    # 生成今天未完成任务的数据字符串
+    today_unfinished_tasks_str = gene_today_unfinished_tasks_str(today_unfinished_tasks)
+
+    if has_duedate_task_cnt < len(tasks) or today_unfinished_tasks:
+        message = f"## {active_sprint.sprint_name} 任务到期提醒\n{no_duedate_tasks_cnt_str}\n{today_unfinished_tasks_str}"
+        return message
+    else:
+        print(f"{active_sprint.sprint_name} 没有到期的任务")
+
+
+def gene_message(config: ProjectRemindConfig) -> List[str] | None:
+    # 获取当前活动的sprint信息
+    project_util = ProjectUtil(config)
+    active_sprints = project_util.active_sprints
+    if not active_sprints:
+        print(f"{config.project_name} 当前没有活动的Sprint")
+    else:
+        message_list = [
+            gene_spirnt_message(active_sprint) for active_sprint in active_sprints
+        ]
+        return message_list
+
+
+def debug_all():
+    for congfig in ProjectRemindConfigUtil.configs():
+        if not congfig.need_progress_remind:
+            print(f"{congfig.project_name} 不需要任务到期提醒")
+            continue
+        message = gene_message(congfig)
+        print(message or f"{congfig.project_name} 无到期任务")
+
+
+def debug_one():
+    congfig = ProjectRemindConfigUtil.config("1044")
+    messages = gene_message(congfig)
+    if messages:
+        for msg in messages:
+            print(msg)
+
+
+if __name__ == "__main__":
+    debug_one()
