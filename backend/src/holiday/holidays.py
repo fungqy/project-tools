@@ -1,65 +1,47 @@
-import json
+from datetime import date
+
 import pandas as pd
-from datetime import datetime, date
-import calendar
+
 from db.dboperator import DbOperator
+from holiday.holiday_service import get_holiday_data_for_db
 
-# 加载节假日JSON数据（假设已保存为holiday_calendar.json）
-with open('holidayAPI.json', 'r', encoding='utf-8') as f:
-    holiday_data = json.load(f)
 
-# 获取2024年节假日数据
-holidays_2024 = holiday_data['Years']['2024']
-comp_days_2024 = []
-for holiday in holidays_2024:
-    comp_days_2024.extend(holiday['CompDays'])
+def update_holidays_table(years: list[int] | None = None):
+    """更新节假日数据库表
 
-# 获取2025年节假日数据
-holidays_2025 = holiday_data['Years']['2025']
-comp_days_2025 = []
-for holiday in holidays_2025:
-    comp_days_2025.extend(holiday['CompDays'])
+    Args:
+        years: 要更新的年份列表，默认为当前年份和下一年
+    """
+    if years is None:
+        today = date.today()
+        years = [today.year, today.year + 1]
 
-# 生成带节假日标记的日期数据
-result = []
-for year in (2024, 2025):
-    if year == 2024:
-        comp_days = comp_days_2024
-        holidays = holidays_2024
-    else:
-        comp_days = comp_days_2025
-        holidays = holidays_2025
-    for month in range(1, 13):
-        _, days_in_month = calendar.monthrange(year, month)
+    for year in years:
+        print(f"正在处理 {year} 年的节假日数据...")
+        result = get_holiday_data_for_db(year)
+        if not result:
+            print(f"  获取 {year} 年数据失败，跳过")
+            continue
 
-        for day in range(1, days_in_month + 1):
-            current_date = date(year, month, day)
-            datestr = current_date.strftime('%Y-%m-%d')
-            weekday = current_date.weekday()
+        print(f"  获取到 {len(result)} 条数据")
 
-            # 判断是否是假日或补班日
-            isholiday = 0
-            iscompday = 0
+        # 清空库表并写入数据
+        DbOperator.truncate_table("holidays")
+        holidays_df = pd.DataFrame(result)
+        holidays_df.to_sql(
+            "holidays", con=DbOperator.get_engine(), if_exists="append", index=False
+        )
+        print(f"  {year} 年数据写入完成")
 
-            for holiday in holidays:
-                start_date = datetime.strptime(holiday['StartDate'], '%Y-%m-%d').date()
-                end_date = datetime.strptime(holiday['EndDate'], '%Y-%m-%d').date()
-                if start_date <= current_date <= end_date:
-                    isholiday = 1
-                    break
 
-            if datestr in comp_days:
-                iscompday = 1
+def main():
+    """主函数"""
+    try:
+        update_holidays_table()
+        print("节假日表更新完成!")
+    except Exception as err:
+        print(f"脚本执行出错: {err}")
 
-            result.append({
-                "datestr": datestr,
-                "weekday": weekday + 1,
-                "isholiday": isholiday,
-                "iscompday": iscompday
-            })
 
-# 清空库表
-DbOperator.truncate_table('holidays')
-# 写入库表
-holidays_df = pd.DataFrame(result)
-holidays_df.to_sql('holidays', con=DbOperator.get_engine(), if_exists='append', index=False)
+if __name__ == "__main__":
+    main()
