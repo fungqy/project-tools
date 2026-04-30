@@ -3,7 +3,28 @@ from typing import List, Optional
 
 from util.color import red, warn
 from util.dateattr import DateAttr
-from util.jira import ProjectRemindConfig, ProjectRemindConfigUtil, ProjectUtil
+from util.jira import ProjectRemindConfig, ProjectUtil
+
+
+def get_debug_configs():
+    """获取调试用的项目配置（从数据库）"""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from api.scheduler import get_project_configs
+
+    return get_project_configs()
+
+
+def get_debug_config(board_id: str):
+    """获取指定board_id的调试配置"""
+    configs = get_debug_configs()
+    for config in configs:
+        if config.board_id == board_id:
+            return config
+    return None
+
 
 dateattr = DateAttr()
 
@@ -72,13 +93,17 @@ def gene_message(config: ProjectRemindConfig) -> List[str] | None:
         print(f"{config.project_name} 当前没有活动的Sprint")
     else:
         message_list = [
-            gene_spirnt_message(active_sprint) for active_sprint in active_sprints
+            msg
+            for msg in [
+                gene_spirnt_message(active_sprint) for active_sprint in active_sprints
+            ]
+            if msg is not None
         ]
-        return message_list
+        return message_list if message_list else None
 
 
 def debug_all():
-    for congfig in ProjectRemindConfigUtil.configs():
+    for congfig in get_debug_configs():
         if not congfig.need_progress_remind:
             print(f"{congfig.project_name} 不需要任务到期提醒")
             continue
@@ -87,11 +112,14 @@ def debug_all():
 
 
 def debug_one():
-    congfig = ProjectRemindConfigUtil.config("1044")
-    messages = gene_message(congfig)
-    if messages:
-        for msg in messages:
-            print(msg)
+    congfig = get_debug_config("1044")
+    if congfig:
+        messages = gene_message(congfig)
+        if messages:
+            for msg in messages:
+                print(msg)
+    else:
+        print("未找到board_id=1044的项目配置")
 
 
 if __name__ == "__main__":

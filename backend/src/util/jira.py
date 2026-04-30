@@ -18,8 +18,8 @@ def set_default_auth(user: str, token: str, url: str = "http://rdm.zvos.zoomlion
 class AuthConfig:
     """JIRA认证配置"""
 
-    user: str = "00773908"
-    token: str = "Nx.0918@ZLZK123"
+    user: str = ""
+    token: str = ""
     url: str = "http://rdm.zvos.zoomlion.com"
 
     @property
@@ -49,7 +49,7 @@ class Sprint:
     completeDate: Optional[str]
     state: str
     goal: Optional[str]
-    auth_config: AuthConfig = field(default=None)
+    auth_config: Optional[AuthConfig] = field(default=None)
 
     def __post_init__(self):
         self.startdate = to_beijing_mysql_datetime(self.startdate)
@@ -58,16 +58,23 @@ class Sprint:
         self.completeDate = to_beijing_mysql_datetime(self.completeDate)
 
     @property
-    def auth(self) -> AuthConfig:
-        """获取认证配置，如果没有项目级别配置则使用默认配置"""
+    def auth(self) -> Optional[AuthConfig]:
+        """获取认证配置，如果没有项目级别配置则使用默认配置
+
+        注意: set_default_auth() 必须在调用JIRA API之前被调用
+        """
         return self.auth_config or DEFAULT_AUTH_CONFIG
 
     @property
     def headers(self):
+        # auth 已在调用前通过 set_default_auth() 设置
+        assert self.auth is not None, "请先调用 set_default_auth() 设置JIRA认证"
         return self.auth.headers
 
     @property
     def api_url(self) -> str:
+        # auth 已在调用前通过 set_default_auth() 设置
+        assert self.auth is not None, "请先调用 set_default_auth() 设置JIRA认证"
         return self.auth.url
 
     def url(self) -> str:
@@ -217,20 +224,26 @@ class ProjectRemindConfig(BaseProject):
 
 
 class ProjectUtil:
-    def __init__(self, project: BaseProject, auth_config: AuthConfig = None) -> None:
+    def __init__(
+        self, project: BaseProject, auth_config: Optional[AuthConfig] = None
+    ) -> None:
         self.project = project
         self.auth_config = auth_config or DEFAULT_AUTH_CONFIG
 
     @property
-    def auth(self) -> AuthConfig:
+    def auth(self) -> Optional[AuthConfig]:
         return self.auth_config
 
     @property
     def headers(self):
+        # auth 已在调用前通过 set_default_auth() 设置
+        assert self.auth is not None, "请先调用 set_default_auth() 设置JIRA认证"
         return self.auth.headers
 
     @property
     def api_url(self) -> str:
+        # auth 已在调用前通过 set_default_auth() 设置
+        assert self.auth is not None, "请先调用 set_default_auth() 设置JIRA认证"
         return self.auth.url
 
     def url(self):
@@ -315,7 +328,13 @@ class ProjectUtil:
             headers=self.headers,
         )
         if response.status_code == 200 and response.json()["values"]:
-            return [self.sprint_to_obj(sprint) for sprint in response.json()["values"]]
+            return [
+                s
+                for s in [
+                    self.sprint_to_obj(sprint) for sprint in response.json()["values"]
+                ]
+                if s is not None
+            ]
         else:
             return []
 
@@ -505,14 +524,3 @@ def rdm_report_issues(issues):
             }
         )
     return result
-
-
-def debug():
-    config = ProjectRemindConfigUtil.config("747")
-    print(config.robot_key)
-    project_util = ProjectUtil(config)
-    print(project_util.sprints)
-
-
-if __name__ == "__main__":
-    debug()

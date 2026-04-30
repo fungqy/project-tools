@@ -4,7 +4,28 @@ import requests
 
 from config.project_sonar_key_map import ZHKS_SONAR_KEY_MAP
 from util.dateattr import DateAttr
-from util.jira import ProjectRemindConfig, ProjectRemindConfigUtil
+from util.jira import ProjectRemindConfig
+
+
+def get_debug_configs():
+    """获取调试用的项目配置（从数据库）"""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from api.scheduler import get_project_configs
+
+    return get_project_configs()
+
+
+def get_debug_config(board_id: str):
+    """获取指定board_id的调试配置"""
+    configs = get_debug_configs()
+    for config in configs:
+        if config.board_id == board_id:
+            return config
+    return None
+
 
 dateattr = DateAttr()
 
@@ -319,10 +340,12 @@ def gene_message(config: ProjectRemindConfig):
         )
         bug_message = (
             f'<font color="warning">, 且存在{latest_scan_branch_bug_cnt}个缺陷</font>'
-            if latest_scan_branch_bug_cnt > 0 and scan_message
+            if latest_scan_branch_bug_cnt
+            and latest_scan_branch_bug_cnt > 0
+            and scan_message
             else (
                 f'<font color="warning">存在{latest_scan_branch_bug_cnt}个缺陷</font>'
-                if latest_scan_branch_bug_cnt > 0
+                if latest_scan_branch_bug_cnt and latest_scan_branch_bug_cnt > 0
                 else ""
             )
         )
@@ -360,7 +383,7 @@ def gene_message(config: ProjectRemindConfig):
 
 
 def debug_all():
-    for congfig in ProjectRemindConfigUtil.configs():
+    for congfig in get_debug_configs():
         if not congfig.need_sonar_scan_remind:
             print(f"{congfig.project_name} 不需要Sonar扫描提醒")
             continue
@@ -369,9 +392,12 @@ def debug_all():
 
 
 def debug_one():
-    congfig = ProjectRemindConfigUtil.config("892")  # 智慧矿山
-    message = gene_message(congfig)
-    print(message)
+    congfig = get_debug_config("892")  # 智慧矿山
+    if congfig:
+        message = gene_message(congfig)
+        print(message)
+    else:
+        print("未找到board_id=892的项目配置")
 
 
 if __name__ == "__main__":

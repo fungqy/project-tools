@@ -12,8 +12,19 @@ from db.sqls import (
     SPRINTS_BUGS_AVG_COMPLETE_DURATION_SQL,
     STORIES_COMPLETE_DURATION_SQL,
 )
-from util.jira import ProjectRemindConfigUtil, ProjectUtil
+from util.jira import ProjectUtil
 from util.jira import Sprint as JiraSprint
+
+
+def get_report_configs():
+    """获取报表用的项目配置（从数据库）"""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from api.scheduler import get_project_configs
+
+    return get_project_configs()
 
 
 def get_sprint_issues_data(sprint: JiraSprint, print_lock):
@@ -98,7 +109,7 @@ def data_to_table(
 
 def get_sprints_data() -> Optional[List[JiraSprint]]:
     jira_sprint_list = []
-    for config in ProjectRemindConfigUtil.configs():
+    for config in get_report_configs():
         project_util = ProjectUtil(config)
         """if not project.need_report_data:
             continue"""
@@ -197,7 +208,7 @@ def main():
         # 发送企业微信通知
         message = "## RDM报表数据拉取失败:\n" + f">{err}\n" + "@聂祥"
         print(message)
-        import utils.qywx as qywx
+        import util.qywx as qywx
 
         qywx.post("8a0ff77b-9936-42a9-911b-fbbf3ad533d4", message)
 

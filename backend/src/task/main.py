@@ -10,7 +10,14 @@ import remind_week_story as story
 
 import util.qywx as qywx
 from util.dateattr import DateAttr
-from util.jira import ProjectRemindConfig, ProjectRemindConfigUtil
+from util.jira import ProjectRemindConfig
+
+
+def get_project_configs():
+    """获取项目配置（从数据库）"""
+    from api.scheduler import get_project_configs as scheduler_get_configs
+
+    return scheduler_get_configs()
 
 
 def module_run(module, remind_config: ProjectRemindConfig):
@@ -72,7 +79,7 @@ def main():
             datetime_run_story_flag=datetime_run_story_flag,
             datetime_run_task_flag=datetime_run_task_flag,
         )
-        pool.map(bound, ProjectRemindConfigUtil.configs())
+        pool.map(bound, get_project_configs())
 
 
 if __name__ == "__main__":
