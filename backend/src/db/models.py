@@ -48,8 +48,12 @@ class User(Base):
             "id": self.id,
             "username": self.username,
             "is_admin": self.is_admin,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
         }
         if include_password:
             data["password"] = self.password
@@ -87,8 +91,12 @@ class JiraAuthConfig(Base):
             "user_id": self.user_id,
             "jira_url": self.jira_url,
             "jira_user": self.jira_user,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
         }
         if include_token:
             data["jira_token"] = self.jira_token
@@ -147,12 +155,16 @@ class ProjectConfig(Base):
             "robot_key": self.robot_key,
             "jira_auth_config_id": self.jira_auth_config_id,
             "created_by": self.created_by,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
             "updated_by": self.updated_by,
         }
         # 如果需要包含JIRA认证详情
-        if self.jira_auth_config:
+        if self.jira_auth_config is not None:
             auth_data = self.jira_auth_config.to_dict(include_token=include_token)
             data["jira_url"] = auth_data["jira_url"]
             data["jira_user"] = auth_data["jira_user"]
@@ -183,5 +195,7 @@ class ProjectAccess(Base):
             "id": self.id,
             "user_id": self.user_id,
             "project_config_id": self.project_config_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
         }

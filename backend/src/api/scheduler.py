@@ -32,7 +32,9 @@ def get_user_jira_auth(user_id: int):
 
         if config:
             return AuthConfig(
-                user=config.jira_user, token=config.jira_token, url=config.jira_url
+                user=str(config.jira_user),
+                token=str(config.jira_token),
+                url=str(config.jira_url),
             )
         return None
     finally:
@@ -48,7 +50,7 @@ def get_project_configs():
     try:
         configs = (
             session.query(ProjectConfig)
-            .filter(ProjectConfig.need_progress_remind == True)
+            .filter(ProjectConfig.need_progress_remind.is_(True))
             .all()
         )
 
@@ -56,24 +58,40 @@ def get_project_configs():
         for config in configs:
             # 获取项目创建者的JIRA认证
             auth_config = None
-            if config.created_by:
-                auth_config = get_user_jira_auth(config.created_by)
+            if config.created_by is not None:
+                auth_config = get_user_jira_auth(int(config.created_by))  # type: ignore
 
             # 构建 ProjectRemindConfig 对象
+            _gitlab_key = (
+                str(config.gitlab_group_key)
+                if config.gitlab_group_key is not None
+                else ""
+            )
+            _sonar_key = (
+                str(config.sonar_key_prefix)
+                if config.sonar_key_prefix is not None
+                else ""
+            )
+            _sonar_person = (
+                str(config.sonar_scan_remind_default_person)
+                if config.sonar_scan_remind_default_person is not None
+                else ""
+            )
+            _robot_key = str(config.robot_key) if config.robot_key is not None else ""
+
             result.append(
                 ProjectRemindConfig(
-                    board_id=config.board_id,
-                    board_name=config.board_name,
-                    project_id=config.project_id,
-                    project_name=config.project_name,
-                    gitlab_group_key=config.gitlab_group_key or "",
-                    need_progress_remind=config.need_progress_remind,
-                    need_sonar_scan_remind=config.need_sonar_scan_remind,
-                    need_report_data=config.need_report_data,
-                    sonar_key_prefix=config.sonar_key_prefix or "",
-                    sonar_scan_remind_default_person=config.sonar_scan_remind_default_person
-                    or "",
-                    robot_key=config.robot_key or "",
+                    board_id=str(config.board_id),
+                    board_name=str(config.board_name),
+                    project_id=str(config.project_id),
+                    project_name=str(config.project_name),
+                    gitlab_group_key=_gitlab_key,
+                    need_progress_remind=bool(config.need_progress_remind),
+                    need_sonar_scan_remind=bool(config.need_sonar_scan_remind),
+                    need_report_data=bool(config.need_report_data),
+                    sonar_key_prefix=_sonar_key,
+                    sonar_scan_remind_default_person=_sonar_person,
+                    robot_key=_robot_key,
                     jira_user=auth_config.user if auth_config else "",
                     jira_token=auth_config.token if auth_config else "",
                 )
@@ -100,7 +118,7 @@ def module_run(module, remind_config: ProjectRemindConfig):
 
 def run_story_task(remind_config: ProjectRemindConfig):
     """执行故事提醒任务"""
-    from task.remind_week_story import remind_week_story
+    from task.remind_week_story import remind_week_story  # type: ignore
 
     dateattr = DateAttr()
     if not dateattr.is_workday:
@@ -112,7 +130,7 @@ def run_story_task(remind_config: ProjectRemindConfig):
 
 def run_task_reminder(remind_config: ProjectRemindConfig):
     """执行子任务到期提醒"""
-    from task.remind_expire_task import remind_expire_task
+    from task.remind_expire_task import remind_expire_task  # type: ignore
 
     dateattr = DateAttr()
     if not dateattr.is_workday:

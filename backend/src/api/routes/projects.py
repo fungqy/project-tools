@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from api.auth import decode_access_token
-from db.database import get_password_hash, get_session
-from db.models import ProjectAccess, ProjectConfig, User
+from db.database import get_session
+from db.models import ProjectConfig
 
 router = APIRouter(prefix="/api/projects", tags=["项目管理"])
 
@@ -86,7 +86,7 @@ async def list_projects(current_user: dict = Depends(get_current_user_from_heade
     """获取项目列表"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
         is_admin = current_user.get("is_admin", False)
 
         if is_admin:
@@ -112,7 +112,7 @@ async def get_project(
     """获取单个项目详情"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
         is_admin = current_user.get("is_admin", False)
 
         project = (
@@ -122,7 +122,7 @@ async def get_project(
             raise HTTPException(status_code=404, detail="项目不存在")
 
         # 检查权限：管理员可以查看所有，普通用户只能查看自己创建的
-        if not is_admin and project.created_by != user_id:
+        if not is_admin and int(project.created_by or 0) != user_id:  # type: ignore
             raise HTTPException(status_code=403, detail="无权限访问此项目")
 
         return project.to_dict(include_token=True)
@@ -138,7 +138,7 @@ async def create_project(
     """创建新项目配置"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
 
         # 检查 board_id 是否已存在
         existing = (
@@ -173,8 +173,8 @@ async def create_project(
             robot_key=config.robot_key,
             jira_user=config.jira_user,
             jira_token=config.jira_token,
-            created_by=user_id,
-            updated_by=user_id,
+            created_by=user_id,  # type: ignore
+            updated_by=user_id,  # type: ignore
         )
         session.add(new_project)
         session.commit()
@@ -194,7 +194,7 @@ async def update_project(
     """更新项目配置"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
         is_admin = current_user.get("is_admin", False)
 
         project = (
@@ -204,7 +204,7 @@ async def update_project(
             raise HTTPException(status_code=404, detail="项目不存在")
 
         # 检查权限：管理员可以更新所有，普通用户只能更新自己创建的
-        if not is_admin and project.created_by != user_id:
+        if not is_admin and int(project.created_by or 0) != user_id:  # type: ignore
             raise HTTPException(status_code=403, detail="无权限更新此项目")
 
         # 更新字段
@@ -213,7 +213,7 @@ async def update_project(
             if hasattr(project, key):
                 setattr(project, key, value)
 
-        project.updated_by = user_id
+        project.updated_by = user_id  # type: ignore
         session.commit()
         session.refresh(project)
 
@@ -229,7 +229,7 @@ async def delete_project(
     """删除项目配置"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
         is_admin = current_user.get("is_admin", False)
 
         project = (
@@ -239,7 +239,7 @@ async def delete_project(
             raise HTTPException(status_code=404, detail="项目不存在")
 
         # 检查权限：管理员可以删除所有，普通用户只能删除自己创建的
-        if not is_admin and project.created_by != user_id:
+        if not is_admin and int(project.created_by or 0) != user_id:  # type: ignore
             raise HTTPException(status_code=403, detail="无权限删除此项目")
 
         session.delete(project)

@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 from dotenv import load_dotenv
 from passlib.context import CryptContext
@@ -75,70 +74,5 @@ def create_admin_user():
             print("管理员账号已创建: admin / admin123")
         else:
             print("管理员账号已存在")
-    finally:
-        session.close()
-
-
-def get_default_jira_auth():
-    """获取默认JIRA认证配置"""
-    from db.models import JiraAuthConfig
-
-    session = get_session()
-    try:
-        config = (
-            session.query(JiraAuthConfig)
-            .filter(JiraAuthConfig.is_default == True)
-            .first()
-        )
-
-        if config:
-            from util.jira import AuthConfig, set_default_auth
-
-            set_default_auth(config.jira_user, config.jira_token, config.jira_url)
-            return config
-        return None
-    finally:
-        session.close()
-
-
-def init_jira_auth_config():
-    """初始化JIRA认证配置（如果不存在默认配置）"""
-    from db.models import JiraAuthConfig
-
-    session = get_session()
-    try:
-        # 检查是否已有默认配置
-        existing = (
-            session.query(JiraAuthConfig)
-            .filter(JiraAuthConfig.is_default == True)
-            .first()
-        )
-
-        if not existing:
-            # 创建默认配置
-            default_config = JiraAuthConfig(
-                config_name="默认配置",
-                jira_url="http://rdm.zvos.zoomlion.com",
-                jira_user="00773908",
-                jira_token="Nx.0918@ZLZK123",
-                is_default=True,
-            )
-            session.add(default_config)
-            session.commit()
-            print("默认JIRA认证配置已创建")
-
-            # 设置为默认认证
-            set_default_auth(
-                "00773908", "Nx.0918@ZLZK123", "http://rdm.zvos.zoomlion.com"
-            )
-        else:
-            # 设置已有配置为默认认证
-            from util.jira import set_default_auth
-
-            set_default_auth(existing.jira_user, existing.jira_token, existing.jira_url)
-            print("JIRA认证配置已加载")
-    except ImportError:
-        # util.jira 可能还没加载，忽略
-        pass
     finally:
         session.close()

@@ -19,11 +19,10 @@ scheduler = TaskScheduler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    # 启动时初始化数据库和创建管理员
-    from db.database import create_admin_user, init_jira_auth_config
+    # 启动时创建管理员账号
+    from db.database import create_admin_user
 
     create_admin_user()
-    init_jira_auth_config()
 
     scheduler.start()
     yield

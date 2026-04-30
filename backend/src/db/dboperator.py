@@ -37,27 +37,33 @@ class DbOperator:
     def truncate_table(table_name):
         """清空表数据"""
         connection = DbOperator.get_connection()
-        _cursor = connection.cursor()
+        if connection is None:
+            return
+        cursor = connection.cursor()
         try:
-            _cursor.execute(f"truncate table {table_name};")
+            cursor.execute(f"truncate table {table_name};")
             connection.commit()
         except Exception as e:
             print(f"Failed to truncate table: {e}")
         finally:
-            _cursor.close()
+            cursor.close()
+            connection.close()
 
     @staticmethod
     def exec_sql(sql_query):
-        """清空表数据"""
+        """执行SQL语句"""
         connection = DbOperator.get_connection()
-        _cursor = connection.cursor()
+        if connection is None:
+            return
+        cursor = connection.cursor()
         try:
-            _cursor.execute(sql_query)
+            cursor.execute(sql_query)
             connection.commit()
         except Exception as e:
             print(f"Failed to exec sql: {e}")
         finally:
-            _cursor.close()
+            cursor.close()
+            connection.close()
 
     @staticmethod
     def get_engine():

@@ -58,7 +58,7 @@ async def login(request: LoginRequest):
         if not user:
             raise HTTPException(status_code=401, detail="用户名或密码错误")
 
-        if not verify_password(request.password, user.password):
+        if not verify_password(request.password, str(user.password)):
             raise HTTPException(status_code=401, detail="用户名或密码错误")
 
         # 创建 token
@@ -97,7 +97,7 @@ async def register(request: RegisterRequest):
 
         # 创建用户的JIRA认证配置
         jira_auth = JiraAuthConfig(
-            user_id=new_user.id,
+            user_id=int(new_user.id),  # type: ignore
             jira_url=request.jira_url,
             jira_user=request.jira_user,
             jira_token=request.jira_token,
@@ -126,7 +126,7 @@ async def get_current_user_info(
     """获取当前用户信息"""
     session = get_session()
     try:
-        user_id = int(current_user.get("sub"))
+        user_id = int(current_user.get("sub"))  # type: ignore
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="用户不存在")
