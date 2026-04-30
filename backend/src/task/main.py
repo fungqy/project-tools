@@ -1,34 +1,39 @@
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import remind_week_story as story
-import remind_expire_task as task
 from datetime import datetime
-from utils.jira import ProjectRemindConfig, ProjectRemindConfigUtil
-import utils.qywx as qywx
-from utils.dateattr import DateAttr
+
+import remind_expire_task as task
+import remind_week_story as story
+
+import util.qywx as qywx
+from util.dateattr import DateAttr
+from util.jira import ProjectRemindConfig, ProjectRemindConfigUtil
 
 
 def module_run(module, remind_config: ProjectRemindConfig):
-        """统一处理消息生成与发送逻辑"""
-        message_list = module.gene_message(remind_config)
-        if not message_list:
-            return
-        for message in message_list:
-            if message:
-                print(f"{message}")
-                qywx.post(remind_config.robot_key, message)
-                # qywx.post('8a0ff77b-9936-42a9-911b-fbbf3ad533d4', message)
+    """统一处理消息生成与发送逻辑"""
+    message_list = module.gene_message(remind_config)
+    if not message_list:
+        return
+    for message in message_list:
+        if message:
+            print(f"{message}")
+            qywx.post(remind_config.robot_key, message)
+            # qywx.post('8a0ff77b-9936-42a9-911b-fbbf3ad533d4', message)
 
-def run(remind_config: ProjectRemindConfig,
-        datetime_run_story_flag: bool = False, # 当前时间是否需要执行本周故事情况提醒
-        datetime_run_task_flag: bool = False   # 当前时间是否需要执行子任务到期提醒
-    ) -> None:
-        if remind_config.need_progress_remind and datetime_run_story_flag:
-            module_run(story, remind_config)
-        if remind_config.need_progress_remind and datetime_run_task_flag:
-            module_run(task, remind_config)
+
+def run(
+    remind_config: ProjectRemindConfig,
+    datetime_run_story_flag: bool = False,  # 当前时间是否需要执行本周故事情况提醒
+    datetime_run_task_flag: bool = False,  # 当前时间是否需要执行子任务到期提醒
+) -> None:
+    if remind_config.need_progress_remind and datetime_run_story_flag:
+        module_run(story, remind_config)
+    if remind_config.need_progress_remind and datetime_run_task_flag:
+        module_run(task, remind_config)
 
 
 def datetime_run_flag():
@@ -60,11 +65,12 @@ def main():
 
     import multiprocessing
     from functools import partial
+
     with multiprocessing.Pool(processes=4) as pool:
         bound = partial(
             run,
             datetime_run_story_flag=datetime_run_story_flag,
-            datetime_run_task_flag=datetime_run_task_flag
+            datetime_run_task_flag=datetime_run_task_flag,
         )
         pool.map(bound, ProjectRemindConfigUtil.configs())
 

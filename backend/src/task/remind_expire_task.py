@@ -1,9 +1,9 @@
 from datetime import date
 from typing import List, Optional
 
-from utils.color import red, warn
-from utils.dateattr import DateAttr
-from utils.jira import ProjectRemindConfig, ProjectRemindConfigUtil, ProjectUtil
+from util.color import red, warn
+from util.dateattr import DateAttr
+from util.jira import ProjectRemindConfig, ProjectRemindConfigUtil, ProjectUtil
 
 dateattr = DateAttr()
 
