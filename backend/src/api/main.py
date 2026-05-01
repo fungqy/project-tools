@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import auth, projects
+from api.routes import scheduler as scheduler_routes
 from api.scheduler import TaskScheduler
 
 # 全局调度器实例
@@ -48,6 +49,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth.router)
 app.include_router(projects.router)
+app.include_router(scheduler_routes.router)
 
 
 @app.get("/", tags=["健康检查"])
@@ -89,3 +91,15 @@ async def trigger_story_reminder():
 async def trigger_task_reminder():
     """手动触发任务提醒任务"""
     return scheduler.run_job_now("task_reminder")
+
+
+@app.post("/api/jobs/sonar-reminder/trigger", tags=["调度任务"])
+async def trigger_sonar_reminder():
+    """手动触发Sonar扫描提醒任务"""
+    return scheduler.run_job_now("sonar_reminder")
+
+
+@app.post("/api/jobs/report-data/trigger", tags=["调度任务"])
+async def trigger_report_data():
+    """手动触发报表数据生成任务"""
+    return scheduler.run_job_now("report_data")

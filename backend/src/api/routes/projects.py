@@ -15,6 +15,11 @@ class ProjectReminderSettingsCreate(BaseModel):
     need_task_remind: bool = False
     need_sonar_scan_remind: bool = False
     need_report_data: bool = False
+    # 各任务类型的自定义调度时间 (HH:MM格式)
+    story_remind_time: Optional[str] = None
+    task_remind_time: Optional[str] = None
+    sonar_remind_time: Optional[str] = None
+    report_data_time: Optional[str] = None
 
 
 class ProjectConfigCreate(BaseModel):
@@ -46,10 +51,18 @@ class ProjectConfigUpdate(BaseModel):
 
 
 class ProjectReminderSettingsResponse(BaseModel):
+    id: int
+    project_config_id: int
     need_story_remind: bool
     need_task_remind: bool
     need_sonar_scan_remind: bool
     need_report_data: bool
+    story_remind_time: Optional[str] = None
+    task_remind_time: Optional[str] = None
+    sonar_remind_time: Optional[str] = None
+    report_data_time: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class ProjectConfigResponse(BaseModel):
@@ -67,6 +80,10 @@ class ProjectConfigResponse(BaseModel):
     need_task_remind: bool = False
     need_sonar_scan_remind: bool = False
     need_report_data: bool = False
+    story_remind_time: Optional[str] = None
+    task_remind_time: Optional[str] = None
+    sonar_remind_time: Optional[str] = None
+    report_data_time: Optional[str] = None
     created_by: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None

@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS project_reminder_settings (
     need_task_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要子任务到期提醒',
     need_sonar_scan_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要Sonar扫描提醒',
     need_report_data TINYINT(1) DEFAULT 0 COMMENT '是否需要生产报表数据',
+    story_remind_time VARCHAR(10) DEFAULT NULL COMMENT '故事提醒时间(HH:MM格式)',
+    task_remind_time VARCHAR(10) DEFAULT NULL COMMENT '任务提醒时间(HH:MM格式)',
+    sonar_remind_time VARCHAR(10) DEFAULT NULL COMMENT 'Sonar扫描提醒时间(HH:MM格式)',
+    report_data_time VARCHAR(10) DEFAULT NULL COMMENT '报表数据生成时间(HH:MM格式)',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     FOREIGN KEY (project_config_id) REFERENCES project_configs(id) ON DELETE CASCADE
@@ -206,6 +210,24 @@ CREATE TABLE IF NOT EXISTS authors_bugs_avg_complete_duration (
     finish_time_all_str VARCHAR(50) COMMENT '平均总完成时长(包含非工作日,字符串格式)',
     finish_time_str VARCHAR(50) COMMENT '平均总完成时长(字符串格式)'
 ) COMMENT '各开发人员的故障平均完成时长表';
+
+-- 调度器配置表
+CREATE TABLE IF NOT EXISTS scheduler_configs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    task_type VARCHAR(50) NOT NULL UNIQUE COMMENT '任务类型(story_reminder/task_reminder/sonar_reminder/report_data)',
+    enabled TINYINT(1) DEFAULT 1 COMMENT '是否启用(0:否,1:是)',
+    day_of_week VARCHAR(20) DEFAULT 'mon-fri' COMMENT '工作日设置',
+    default_time VARCHAR(10) DEFAULT '08:30' COMMENT '默认执行时间(HH:MM格式)',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
+) COMMENT '调度器配置表';
+
+-- 初始化调度器配置
+INSERT INTO scheduler_configs (task_type, enabled, day_of_week, default_time) VALUES
+('story_reminder', 1, 'mon-fri', '08:30'),
+('task_reminder', 1, 'mon-fri', '17:20'),
+('sonar_reminder', 1, 'mon-fri', '09:00'),
+('report_data', 1, 'fri', '18:00');
 
 -- 节假日表
 CREATE TABLE IF NOT EXISTS holidays (

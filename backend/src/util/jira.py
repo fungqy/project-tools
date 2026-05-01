@@ -220,6 +220,11 @@ class ProjectRemindConfig(BaseProject):
     robot_key: str = ""  # 企业微信群机器人key
     jira_user: str = ""  # JIRA用户名
     jira_token: str = ""  # JIRA Token
+    # 各任务类型的自定义调度时间 (HH:MM格式，留空使用全局默认)
+    story_remind_time: str = ""  # 故事提醒时间
+    task_remind_time: str = ""  # 任务提醒时间
+    sonar_remind_time: str = ""  # Sonar扫描提醒时间
+    report_data_time: str = ""  # 报表数据生成时间
 
 
 class ProjectUtil:

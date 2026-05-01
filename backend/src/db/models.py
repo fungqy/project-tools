@@ -6,6 +6,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     String,
 )
 from sqlalchemy.orm import declarative_base, relationship
@@ -189,6 +190,11 @@ class ProjectReminderSettings(Base):
     need_task_remind = Column(Boolean, default=False)  # 是否需要子任务到期提醒
     need_sonar_scan_remind = Column(Boolean, default=False)  # 是否需要Sonar扫描提醒
     need_report_data = Column(Boolean, default=False)  # 是否需要生产RDM报表数据
+    # 各任务类型的自定义调度时间 (HH:MM格式，留空使用全局默认)
+    story_remind_time = Column(String(10), nullable=True)  # 故事提醒时间
+    task_remind_time = Column(String(10), nullable=True)  # 任务提醒时间
+    sonar_remind_time = Column(String(10), nullable=True)  # Sonar扫描提醒时间
+    report_data_time = Column(String(10), nullable=True)  # 报表数据生成时间
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -203,6 +209,41 @@ class ProjectReminderSettings(Base):
             "need_task_remind": self.need_task_remind,
             "need_sonar_scan_remind": self.need_sonar_scan_remind,
             "need_report_data": self.need_report_data,
+            "story_remind_time": self.story_remind_time,
+            "task_remind_time": self.task_remind_time,
+            "sonar_remind_time": self.sonar_remind_time,
+            "report_data_time": self.report_data_time,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
+        }
+
+
+class SchedulerConfig(Base):
+    """调度器配置模型"""
+
+    __tablename__ = "scheduler_configs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    task_type = Column(
+        String(50), nullable=False, unique=True
+    )  # 任务类型: story_reminder, task_reminder, sonar_reminder, report_data
+    enabled = Column(Boolean, default=True)  # 是否启用
+    day_of_week = Column(String(20), default="mon-fri")  # 工作日设置
+    default_time = Column(String(10), default="08:30")  # 默认执行时间 (HH:MM格式)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "task_type": self.task_type,
+            "enabled": self.enabled,
+            "day_of_week": self.day_of_week,
+            "default_time": self.default_time,
             "created_at": self.created_at.isoformat()
             if self.created_at is not None
             else None,
