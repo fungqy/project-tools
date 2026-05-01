@@ -211,9 +211,8 @@ class ProjectRemindConfig(BaseProject):
     """项目提醒配置信息"""
 
     gitlab_group_key: str = ""  # gitlab 项目的group key
-    need_progress_remind: bool = (
-        False  # 是否需要进行项目进度提醒（含本周故事、子任务到期）
-    )
+    need_story_remind: bool = False  # 是否需要故事提醒
+    need_task_remind: bool = False  # 是否需要子任务到期提醒
     need_sonar_scan_remind: bool = False  # 是否需要Sonar扫描提醒
     need_report_data: bool = False  # 是否需要生产RDM报表数据
     sonar_key_prefix: str = ""  # Sonar key 名称前缀（基于项目名称）

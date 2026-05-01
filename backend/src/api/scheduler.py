@@ -44,18 +44,26 @@ def get_user_jira_auth(user_id: int):
 def get_project_configs():
     """从数据库获取项目配置"""
     from db.database import get_session
-    from db.models import ProjectConfig
+    from db.models import ProjectReminderSettings
 
     session = get_session()
     try:
-        configs = (
-            session.query(ProjectConfig)
-            .filter(ProjectConfig.need_progress_remind.is_(True))
+        # 查询所有需要提醒的项目配置
+        reminder_settings = (
+            session.query(ProjectReminderSettings)
+            .filter(
+                (ProjectReminderSettings.need_story_remind.is_(True))
+                | (ProjectReminderSettings.need_task_remind.is_(True))
+            )
             .all()
         )
 
         result = []
-        for config in configs:
+        for setting in reminder_settings:
+            config = setting.project_config
+            if config is None:
+                continue
+
             # 获取项目创建者的JIRA认证
             auth_config = None
             if config.created_by is not None:
@@ -86,9 +94,10 @@ def get_project_configs():
                     project_id=str(config.project_id),
                     project_name=str(config.project_name),
                     gitlab_group_key=_gitlab_key,
-                    need_progress_remind=bool(config.need_progress_remind),
-                    need_sonar_scan_remind=bool(config.need_sonar_scan_remind),
-                    need_report_data=bool(config.need_report_data),
+                    need_story_remind=bool(setting.need_story_remind),
+                    need_task_remind=bool(setting.need_task_remind),
+                    need_sonar_scan_remind=bool(setting.need_sonar_scan_remind),
+                    need_report_data=bool(setting.need_report_data),
                     sonar_key_prefix=_sonar_key,
                     sonar_scan_remind_default_person=_sonar_person,
                     robot_key=_robot_key,
@@ -153,7 +162,7 @@ def run_all_story_tasks():
 
     configs = get_project_configs()
     for config in configs:
-        if config.need_progress_remind:
+        if config.need_story_remind:
             run_story_task(config)
 
 
@@ -170,7 +179,7 @@ def run_all_task_reminders():
 
     configs = get_project_configs()
     for config in configs:
-        if config.need_progress_remind:
+        if config.need_task_remind:
             run_task_reminder(config)
 
 

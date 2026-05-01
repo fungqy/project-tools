@@ -38,10 +38,6 @@ class User(Base):
         back_populates="creator",
         foreign_keys="ProjectConfig.created_by",
     )
-    # 关联：项目访问权限
-    project_access = relationship(
-        "ProjectAccess", back_populates="user", cascade="all, delete-orphan"
-    )
 
     def to_dict(self, include_password=False):
         data = {
@@ -114,9 +110,6 @@ class ProjectConfig(Base):
     project_id = Column(String(50), nullable=False, unique=True)
     project_name = Column(String(255), nullable=False)
     gitlab_group_key = Column(String(100), default="")
-    need_progress_remind = Column(Boolean, default=False)
-    need_sonar_scan_remind = Column(Boolean, default=False)
-    need_report_data = Column(Boolean, default=False)
     sonar_key_prefix = Column(String(100), default="")
     sonar_scan_remind_default_person = Column(String(100), default="")
     robot_key = Column(String(100), default="")
@@ -134,9 +127,12 @@ class ProjectConfig(Base):
     creator = relationship(
         "User", back_populates="created_projects", foreign_keys=[created_by]
     )
-    # 关联：项目访问权限
-    project_access = relationship(
-        "ProjectAccess", back_populates="project_config", cascade="all, delete-orphan"
+    # 关联：提醒设置
+    reminder_settings = relationship(
+        "ProjectReminderSettings",
+        back_populates="project_config",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     def to_dict(self, include_token=False):
@@ -147,9 +143,6 @@ class ProjectConfig(Base):
             "project_id": self.project_id,
             "project_name": self.project_name,
             "gitlab_group_key": self.gitlab_group_key,
-            "need_progress_remind": self.need_progress_remind,
-            "need_sonar_scan_remind": self.need_sonar_scan_remind,
-            "need_report_data": self.need_report_data,
             "sonar_key_prefix": self.sonar_key_prefix,
             "sonar_scan_remind_default_person": self.sonar_scan_remind_default_person,
             "robot_key": self.robot_key,
@@ -170,32 +163,50 @@ class ProjectConfig(Base):
             data["jira_user"] = auth_data["jira_user"]
             if include_token:
                 data["jira_token"] = auth_data.get("jira_token")
+        # 如果包含提醒设置
+        if self.reminder_settings is not None:
+            reminder_data = self.reminder_settings.to_dict()
+            data["need_story_remind"] = reminder_data["need_story_remind"]
+            data["need_task_remind"] = reminder_data["need_task_remind"]
+            data["need_sonar_scan_remind"] = reminder_data["need_sonar_scan_remind"]
+            data["need_report_data"] = reminder_data["need_report_data"]
         return data
 
 
-class ProjectAccess(Base):
-    """项目访问关联模型"""
+class ProjectReminderSettings(Base):
+    """项目提醒设置模型"""
 
-    __tablename__ = "project_access"
+    __tablename__ = "project_reminder_settings"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    user_id = Column(
-        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
     project_config_id = Column(
-        BigInteger, ForeignKey("project_configs.id", ondelete="CASCADE"), nullable=False
+        BigInteger,
+        ForeignKey("project_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
+    need_story_remind = Column(Boolean, default=False)  # 是否需要故事提醒
+    need_task_remind = Column(Boolean, default=False)  # 是否需要子任务到期提醒
+    need_sonar_scan_remind = Column(Boolean, default=False)  # 是否需要Sonar扫描提醒
+    need_report_data = Column(Boolean, default=False)  # 是否需要生产RDM报表数据
     created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    user = relationship("User", back_populates="project_access")
-    project_config = relationship("ProjectConfig", back_populates="project_access")
+    # 关联：所属项目
+    project_config = relationship("ProjectConfig", back_populates="reminder_settings")
 
     def to_dict(self):
         return {
             "id": self.id,
-            "user_id": self.user_id,
             "project_config_id": self.project_config_id,
+            "need_story_remind": self.need_story_remind,
+            "need_task_remind": self.need_task_remind,
+            "need_sonar_scan_remind": self.need_sonar_scan_remind,
+            "need_report_data": self.need_report_data,
             "created_at": self.created_at.isoformat()
             if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
             else None,
         }

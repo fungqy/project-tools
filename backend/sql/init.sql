@@ -33,9 +33,6 @@ CREATE TABLE IF NOT EXISTS project_configs (
     project_id VARCHAR(50) NOT NULL COMMENT 'JIRA项目ID',
     project_name VARCHAR(255) NOT NULL COMMENT 'JIRA项目名称',
     gitlab_group_key VARCHAR(100) DEFAULT '' COMMENT 'GitLab Group Key',
-    need_progress_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要进度提醒',
-    need_sonar_scan_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要Sonar扫描提醒',
-    need_report_data TINYINT(1) DEFAULT 0 COMMENT '是否需要生产报表数据',
     sonar_key_prefix VARCHAR(100) DEFAULT '' COMMENT 'Sonar Key前缀',
     sonar_scan_remind_default_person VARCHAR(100) DEFAULT '' COMMENT 'Sonar扫描默认提醒人',
     robot_key VARCHAR(100) DEFAULT '' COMMENT '企业微信机器人key',
@@ -51,16 +48,18 @@ CREATE TABLE IF NOT EXISTS project_configs (
     FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) COMMENT '项目配置表';
 
--- 项目访问关联表(用户可以有多个项目的查看权限)
-CREATE TABLE IF NOT EXISTS project_access (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL COMMENT '用户ID',
-    project_config_id BIGINT NOT NULL COMMENT '项目配置ID',
+-- 项目提醒设置表
+CREATE TABLE IF NOT EXISTS project_reminder_settings (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    project_config_id BIGINT NOT NULL UNIQUE COMMENT '关联的项目配置ID',
+    need_story_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要故事提醒',
+    need_task_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要子任务到期提醒',
+    need_sonar_scan_remind TINYINT(1) DEFAULT 0 COMMENT '是否需要Sonar扫描提醒',
+    need_report_data TINYINT(1) DEFAULT 0 COMMENT '是否需要生产报表数据',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    UNIQUE KEY uk_user_project (user_id, project_config_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     FOREIGN KEY (project_config_id) REFERENCES project_configs(id) ON DELETE CASCADE
-) COMMENT '项目访问关联表';
+) COMMENT '项目提醒设置表';
 
 -- ================================================
 -- 初始化管理员账号 (用户名: admin, 密码: admin123)
@@ -83,18 +82,34 @@ INSERT INTO jira_auth_configs (user_id, jira_url, jira_user, jira_token) VALUES
 -- ================================================
 -- 初始化项目配置数据(归属user01)
 -- ================================================
-INSERT INTO project_configs (board_id, board_name, project_id, project_name, gitlab_group_key, need_progress_remind, need_sonar_scan_remind, need_report_data, sonar_key_prefix, sonar_scan_remind_default_person, robot_key, jira_auth_config_id, created_by) VALUES
-('732', '智慧矿山', '12112', '三维生产管控系统', 'zhks', 1, 0, 0, '', '<@施超>', '8ea86c1e-6b13-4304-aecc-f174e54ab7e5', 1, 2),
-('747', '高精物联平台', '12301', '高精物联平台', '', 0, 0, 0, '', '', '', '', 1, 2),
-('754', '设备管理系统', '12308', '设备管理系统', '', 0, 0, 0, '', '', '', '', 1, 2),
-('788', '环境安全监测平台', '12431', '环境安全监测平台', '', 0, 0, 0, '', '', '', '', 1, 2),
-('797', '无人机巡检系统', '12507', '无人机巡检系统', '', 0, 0, 0, '', '', '', '', 1, 2),
-('834', '皮带撕裂检测系统', '12800', '皮带撕裂检测系统', '', 0, 0, 0, '', '', '', '', 1, 2),
-('892', '数据工具链平台', '13114', '数据工具链平台', 'cmp', 1, 0, 1, 'cmp-', '<@李昊>', '23fc0566-ba86-44f9-8c8c-143d7e0e9603', 1, 2),
-('960', '调度系统', '13254', '调度系统', 'dms', 1, 1, 1, 'dms-', '<@施超>', '25832ddb-bf13-45d6-a474-b5d60a76ba67', 1, 2),
-('998', '割草机器人', '13318', '割草机器人', 'mowing', 0, 0, 1, '-zvos-', '<@邓平>', 'cf88a622-8bf9-4f02-bfae-9c997150de46', 1, 2),
-('1044', '具身智能生态平台', '13718', '具身智能生态平台', 'jsst', 1, 0, 0, 'jsst-', '<@李昊>', '0595f800-9e08-4bfa-adbf-4c0f92dd51e2', 1, 2),
-('1036', '具身智能应用开发平台', '13710', '具身智能应用开发平台', 'embodied-adp', 1, 0, 0, '-', '<@李昊>', 'abb2b360-3eec-47b3-bb73-0f78f05b10ec', 1, 2);
+INSERT INTO project_configs (board_id, board_name, project_id, project_name, gitlab_group_key, sonar_key_prefix, sonar_scan_remind_default_person, robot_key, jira_auth_config_id, created_by) VALUES
+('732', '智慧矿山', '12112', '三维生产管控系统', 'zhks', '', '<@施超>', '8ea86c1e-6b13-4304-aecc-f174e54ab7e5', 1, 2),
+('747', '高精物联平台', '12301', '高精物联平台', '', '', '', '', 1, 2),
+('754', '设备管理系统', '12308', '设备管理系统', '', '', '', '', 1, 2),
+('788', '环境安全监测平台', '12431', '环境安全监测平台', '', '', '', '', 1, 2),
+('797', '无人机巡检系统', '12507', '无人机巡检系统', '', '', '', '', 1, 2),
+('834', '皮带撕裂检测系统', '12800', '皮带撕裂检测系统', '', '', '', '', 1, 2),
+('892', '数据工具链平台', '13114', '数据工具链平台', 'cmp', 'cmp-', '<@李昊>', '23fc0566-ba86-44f9-8c8c-143d7e0e9603', 1, 2),
+('960', '调度系统', '13254', '调度系统', 'dms', 'dms-', '<@施超>', '25832ddb-bf13-45d6-a474-b5d60a76ba67', 1, 2),
+('998', '割草机器人', '13318', '割草机器人', 'mowing', '-zvos-', '<@邓平>', 'cf88a622-8bf9-4f02-bfae-9c997150de46', 1, 2),
+('1044', '具身智能生态平台', '13718', '具身智能生态平台', 'jsst', 'jsst-', '<@李昊>', '0595f800-9e08-4bfa-adbf-4c0f92dd51e2', 1, 2),
+('1036', '具身智能应用开发平台', '13710', '具身智能应用开发平台', 'embodied-adp', '-', '<@李昊>', 'abb2b360-3eec-47b3-bb73-0f78f05b10ec', 1, 2);
+
+-- ================================================
+-- 初始化项目提醒设置数据(关联项目配置)
+-- ================================================
+INSERT INTO project_reminder_settings (project_config_id, need_story_remind, need_task_remind, need_sonar_scan_remind, need_report_data) VALUES
+(1, 1, 1, 0, 0),   -- 智慧矿山：故事提醒+任务提醒
+(2, 0, 0, 0, 0),   -- 高精物联平台
+(3, 0, 0, 0, 0),   -- 设备管理系统
+(4, 0, 0, 0, 0),   -- 环境安全监测平台
+(5, 0, 0, 0, 0),   -- 无人机巡检系统
+(6, 0, 0, 0, 0),   -- 皮带撕裂检测系统
+(7, 1, 1, 0, 1),   -- 数据工具链平台：故事提醒+任务提醒+报表
+(8, 1, 1, 1, 1),   -- 调度系统：全部提醒
+(9, 0, 0, 0, 1),   -- 割草机器人：仅报表
+(10, 1, 1, 0, 0),  -- 具身智能生态平台：故事提醒+任务提醒
+(11, 1, 1, 0, 0);  -- 具身智能应用开发平台：故事提醒+任务提醒
 
 -- ================================================
 -- 业务报表相关表

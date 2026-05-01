@@ -5,9 +5,16 @@ from pydantic import BaseModel
 
 from api.auth import decode_access_token
 from db.database import get_session
-from db.models import ProjectConfig
+from db.models import ProjectConfig, ProjectReminderSettings
 
 router = APIRouter(prefix="/api/projects", tags=["项目管理"])
+
+
+class ProjectReminderSettingsCreate(BaseModel):
+    need_story_remind: bool = False
+    need_task_remind: bool = False
+    need_sonar_scan_remind: bool = False
+    need_report_data: bool = False
 
 
 class ProjectConfigCreate(BaseModel):
@@ -16,14 +23,12 @@ class ProjectConfigCreate(BaseModel):
     project_id: str
     project_name: str
     gitlab_group_key: str = ""
-    need_progress_remind: bool = False
-    need_sonar_scan_remind: bool = False
-    need_report_data: bool = False
     sonar_key_prefix: str = ""
     sonar_scan_remind_default_person: str = ""
     robot_key: str = ""
     jira_user: str = ""
     jira_token: str = ""
+    reminder_settings: Optional[ProjectReminderSettingsCreate] = None
 
 
 class ProjectConfigUpdate(BaseModel):
@@ -32,14 +37,19 @@ class ProjectConfigUpdate(BaseModel):
     project_id: Optional[str] = None
     project_name: Optional[str] = None
     gitlab_group_key: Optional[str] = None
-    need_progress_remind: Optional[bool] = None
-    need_sonar_scan_remind: Optional[bool] = None
-    need_report_data: Optional[bool] = None
     sonar_key_prefix: Optional[str] = None
     sonar_scan_remind_default_person: Optional[str] = None
     robot_key: Optional[str] = None
     jira_user: Optional[str] = None
     jira_token: Optional[str] = None
+    reminder_settings: Optional[ProjectReminderSettingsCreate] = None
+
+
+class ProjectReminderSettingsResponse(BaseModel):
+    need_story_remind: bool
+    need_task_remind: bool
+    need_sonar_scan_remind: bool
+    need_report_data: bool
 
 
 class ProjectConfigResponse(BaseModel):
@@ -49,13 +59,14 @@ class ProjectConfigResponse(BaseModel):
     project_id: str
     project_name: str
     gitlab_group_key: str
-    need_progress_remind: bool
-    need_sonar_scan_remind: bool
-    need_report_data: bool
     sonar_key_prefix: str
     sonar_scan_remind_default_person: str
     robot_key: str
     jira_user: str
+    need_story_remind: bool = False
+    need_task_remind: bool = False
+    need_sonar_scan_remind: bool = False
+    need_report_data: bool = False
     created_by: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -165,9 +176,6 @@ async def create_project(
             project_id=config.project_id,
             project_name=config.project_name,
             gitlab_group_key=config.gitlab_group_key,
-            need_progress_remind=config.need_progress_remind,
-            need_sonar_scan_remind=config.need_sonar_scan_remind,
-            need_report_data=config.need_report_data,
             sonar_key_prefix=config.sonar_key_prefix,
             sonar_scan_remind_default_person=config.sonar_scan_remind_default_person,
             robot_key=config.robot_key,
@@ -177,6 +185,19 @@ async def create_project(
             updated_by=user_id,  # type: ignore
         )
         session.add(new_project)
+        session.flush()  # 获取项目ID
+
+        # 创建提醒设置
+        if config.reminder_settings:
+            reminder_settings = ProjectReminderSettings(
+                project_config_id=new_project.id,
+                need_story_remind=config.reminder_settings.need_story_remind,
+                need_task_remind=config.reminder_settings.need_task_remind,
+                need_sonar_scan_remind=config.reminder_settings.need_sonar_scan_remind,
+                need_report_data=config.reminder_settings.need_report_data,
+            )
+            session.add(reminder_settings)
+
         session.commit()
         session.refresh(new_project)
 
@@ -207,11 +228,35 @@ async def update_project(
         if not is_admin and int(project.created_by or 0) != user_id:  # type: ignore
             raise HTTPException(status_code=403, detail="无权限更新此项目")
 
-        # 更新字段
+        # 更新项目字段
         update_data = config.dict(exclude_unset=True)
+
+        # 分离提醒设置和项目配置
+        reminder_settings_data = update_data.pop("reminder_settings", None)
+
         for key, value in update_data.items():
             if hasattr(project, key):
                 setattr(project, key, value)
+
+        # 更新提醒设置
+        if reminder_settings_data is not None:
+            existing_settings = (
+                session.query(ProjectReminderSettings)
+                .filter(ProjectReminderSettings.project_config_id == project_id)
+                .first()
+            )
+
+            if existing_settings:
+                for key, value in reminder_settings_data.items():
+                    if hasattr(existing_settings, key):
+                        setattr(existing_settings, key, value)
+            elif reminder_settings_data:
+                # 如果之前没有设置，创建新的
+                new_settings = ProjectReminderSettings(
+                    project_config_id=project_id,
+                    **reminder_settings_data,
+                )
+                session.add(new_settings)
 
         project.updated_by = user_id  # type: ignore
         session.commit()

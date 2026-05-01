@@ -171,7 +171,7 @@ def gene_message(config: ProjectRemindConfig) -> Optional[List[str]]:
 
 def debug_all():
     for congfig in get_debug_configs():
-        if not congfig.need_progress_remind:
+        if not congfig.need_story_remind:
             print(f"{congfig.project_name} 不需要本周故事提醒")
             continue
         message = gene_message(congfig)
