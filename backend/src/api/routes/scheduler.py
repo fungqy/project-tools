@@ -17,18 +17,16 @@ class SchedulerConfigCreate(BaseModel):
 
     task_type: str
     enabled: bool = True
-    hour: int = 8
-    minute: int = 30
     day_of_week: str = "mon-fri"
+    default_time: str = "08:30"
 
 
 class SchedulerConfigUpdate(BaseModel):
     """更新调度配置请求"""
 
     enabled: Optional[bool] = None
-    hour: Optional[int] = None
-    minute: Optional[int] = None
     day_of_week: Optional[str] = None
+    default_time: Optional[str] = None
 
 
 class SchedulerConfigResponse(BaseModel):
@@ -37,9 +35,8 @@ class SchedulerConfigResponse(BaseModel):
     id: int
     task_type: str
     enabled: bool
-    hour: int
-    minute: int
     day_of_week: str
+    default_time: str
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -50,9 +47,8 @@ def config_to_response(config: SchedulerConfig) -> SchedulerConfigResponse:
         id=getattr(config, "id"),
         task_type=getattr(config, "task_type"),
         enabled=getattr(config, "enabled"),
-        hour=getattr(config, "hour"),
-        minute=getattr(config, "minute"),
         day_of_week=getattr(config, "day_of_week"),
+        default_time=getattr(config, "default_time"),
         created_at=config.created_at.isoformat()
         if config.created_at is not None
         else None,
@@ -108,12 +104,10 @@ def update_config(task_type: str, update: SchedulerConfigUpdate):
         # 更新字段
         if update.enabled is not None:
             setattr(config, "enabled", update.enabled)
-        if update.hour is not None:
-            setattr(config, "hour", update.hour)
-        if update.minute is not None:
-            setattr(config, "minute", update.minute)
         if update.day_of_week is not None:
             setattr(config, "day_of_week", update.day_of_week)
+        if update.default_time is not None:
+            setattr(config, "default_time", update.default_time)
 
         setattr(config, "updated_at", datetime.now())
         session.commit()
