@@ -3,6 +3,21 @@
 -- 数据库: rdmdb
 -- ================================================
 
+-- 创建数据库(如果不存在)
+CREATE DATABASE IF NOT EXISTS rdmdb DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE rdmdb;
+
+
+-- 创建数据库用户(如果不存在)
+CREATE USER IF NOT EXISTS 'rdmuser'@'%' IDENTIFIED BY 'rdmpass123';
+CREATE USER IF NOT EXISTS 'rdmuser'@'localhost' IDENTIFIED BY 'rdmpass123';
+
+
+-- 授权
+GRANT ALL PRIVILEGES ON rdmdb.* TO 'rdmuser'@'%';
+GRANT ALL PRIVILEGES ON rdmdb.* TO 'rdmuser'@'localhost';
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
@@ -12,6 +27,14 @@ CREATE TABLE IF NOT EXISTS users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) COMMENT '用户表';
+
+-- ================================================
+-- 初始化管理员账号 (用户名: admin, 密码: admin123)
+-- 初始化普通用户 (用户名: user01, 密码: user123)
+-- ================================================
+INSERT INTO users (id, username, password, is_admin) VALUES
+(1, 'admin', '$2b$12$eo.dPF13lDkHxB7M8.OIiOzr47TrjioW.KEM7c.SZHzNmIsCNtUWy', 1),
+(2, 'user01', '$2b$12$9YXCwmRP4TqllrqSKejuhecXkz8mv5BvYIANGzlWeGnWZ6VG1cvny', 0);
 
 -- JIRA认证配置表
 CREATE TABLE IF NOT EXISTS jira_auth_configs (
@@ -64,18 +87,6 @@ CREATE TABLE IF NOT EXISTS project_reminder_settings (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     FOREIGN KEY (project_config_id) REFERENCES project_configs(id) ON DELETE CASCADE
 ) COMMENT '项目提醒设置表';
-
--- ================================================
--- 初始化管理员账号 (用户名: admin, 密码: admin123)
--- ================================================
-INSERT INTO users (username, password, is_admin) VALUES
-('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.VTtYWPQFQBL1C6', 1);
-
--- ================================================
--- 初始化普通用户 (用户名: user01, 密码: user123)
--- ================================================
-INSERT INTO users (username, password, is_admin) VALUES
-('user01', '$2b$12$eIGEgNjTjSfF7kGdT7ZJQeZ5R9pZQvJG5Yq5t5v5K5t5v5K5t5v5K', 0);
 
 -- ================================================
 -- 初始化普通用户的JIRA认证配置

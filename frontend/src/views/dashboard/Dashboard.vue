@@ -106,7 +106,7 @@ async function handleTriggerJob(jobId: string) {
                   立即执行
                 </el-button>
               </template>
-            </el-table>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>

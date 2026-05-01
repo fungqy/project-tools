@@ -204,7 +204,7 @@ def module_run(module, remind_config: ProjectRemindConfig):
     for message in message_list:
         if message:
             logger.info(f"[{remind_config.project_name}] {message}")
-            post(remind_config.robot_key, message)
+            # post(remind_config.robot_key, message)
 
 
 def check_time_match(config_time: str, default_time: str, now: datetime) -> bool:

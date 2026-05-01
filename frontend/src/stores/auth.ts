@@ -9,10 +9,10 @@ export const useAuthStore = defineStore("auth", () => {
 
     async function login(username: string, password: string) {
         const response = await authApi.login({ username, password });
-        token.value = response.data.access_token;
-        user.value = response.data.user;
-        localStorage.setItem("token", response.data.access_token);
-        localStorage.setItem("user", JSON.stringify(response.data.user));
+        token.value = response.access_token;
+        user.value = response.user;
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
         return response;
     }
 
