@@ -8,8 +8,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const loginForm = ref({
-  username: 'user01',
-  password: 'user123',
+  username: '',
+  password: '',
 })
 const registerForm = ref({
   username: '',
@@ -183,10 +183,6 @@ async function handleRegister() {
           <el-link type="primary" @click="isRegister = false">已有账号？立即登录</el-link>
         </div>
       </el-form>
-
-      <div class="login-footer">
-        <span>默认账号: user01 / user123</span>
-      </div>
     </div>
   </div>
 </template>
