@@ -235,28 +235,196 @@ class ProjectReminderSettings(Base):
         }
 
 
-class SchedulerConfig(Base):
-    """调度器配置模型"""
+class Holiday(Base):
+    """节假日模型"""
 
-    __tablename__ = "scheduler_configs"
+    __tablename__ = "holidays"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    task_type = Column(
-        String(50), nullable=False, unique=True
-    )  # 任务类型: story_reminder, task_reminder, sonar_reminder, report_data
-    enabled = Column(Boolean, default=True)  # 是否启用
-    day_of_week = Column(String(20), default="mon-fri")  # 工作日设置
-    default_time = Column(String(10), default="08:30")  # 默认执行时间 (HH:MM格式)
+    datestr = Column(DateTime, unique=True, nullable=False)
+    isholiday = Column(Boolean, default=False)
+    iscompday = Column(Boolean, default=False)
+    weekday = Column(Integer)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "datestr": self.datestr.isoformat() if self.datestr else None,
+            "isholiday": self.isholiday,
+            "iscompday": self.iscompday,
+            "weekday": self.weekday,
+        }
+
+
+class BugMetric(Base):
+    """故障度量模型"""
+
+    __tablename__ = "bug_metrics"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    project_id = Column(String(50), nullable=False)
+    project_name = Column(String(255))
+    metric_date = Column(DateTime)
+    bug_count = Column(Integer, default=0)
+    bug_created_count = Column(Integer, default=0)
+    bug_resolved_count = Column(Integer, default=0)
+    bug_open_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class BugMetricByDeveloper(Base):
+    """开发人员故障度量模型"""
+
+    __tablename__ = "bug_metrics_by_developer"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    project_id = Column(String(50), nullable=False)
+    project_name = Column(String(255))
+    metric_date = Column(DateTime)
+    developer_id = Column(String(50))
+    developer_name = Column(String(100))
+    bug_count = Column(Integer, default=0)
+    bug_created_count = Column(Integer, default=0)
+    bug_resolved_count = Column(Integer, default=0)
+    bug_open_count = Column(Integer, default=0)
+    avg_resolve_time_seconds = Column(BigInteger, default=0)
+    avg_finish_time_seconds = Column(BigInteger, default=0)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class AvgMetricByDay(Base):
+    """每日平均故障完成时长模型"""
+
+    __tablename__ = "avg_metric_by_day"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    metric_date = Column(DateTime)
+    avg_resolve_time_seconds = Column(BigInteger, default=0)
+    avg_finish_time_seconds = Column(BigInteger, default=0)
+    bug_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     def to_dict(self):
         return {
             "id": self.id,
-            "task_type": self.task_type,
-            "enabled": self.enabled,
-            "day_of_week": self.day_of_week,
-            "default_time": self.default_time,
+            "metric_date": self.metric_date.isoformat()
+            if self.metric_date is not None
+            else None,
+            "avg_resolve_time_seconds": self.avg_resolve_time_seconds,
+            "avg_finish_time_seconds": self.avg_finish_time_seconds,
+            "bug_count": self.bug_count,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
+        }
+
+
+class AvgMetricByProject(Base):
+    """各项目故障平均完成时长模型"""
+
+    __tablename__ = "avg_metric_by_project"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    project_id = Column(String(50), nullable=False)
+    project_name = Column(String(255))
+    metric_date = Column(DateTime)
+    avg_resolve_time_seconds = Column(BigInteger, default=0)
+    avg_finish_time_seconds = Column(BigInteger, default=0)
+    bug_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "project_name": self.project_name,
+            "metric_date": self.metric_date.isoformat()
+            if self.metric_date is not None
+            else None,
+            "avg_resolve_time_seconds": self.avg_resolve_time_seconds,
+            "avg_finish_time_seconds": self.avg_finish_time_seconds,
+            "bug_count": self.bug_count,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
+        }
+
+
+class AvgMetricByDeveloper(Base):
+    """各开发人员故障平均完成时长模型"""
+
+    __tablename__ = "avg_metric_by_developer"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    developer_id = Column(String(50), nullable=False)
+    developer_name = Column(String(100))
+    metric_date = Column(DateTime)
+    avg_resolve_time_seconds = Column(BigInteger, default=0)
+    avg_finish_time_seconds = Column(BigInteger, default=0)
+    bug_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "developer_id": self.developer_id,
+            "developer_name": self.developer_name,
+            "metric_date": self.metric_date.isoformat()
+            if self.metric_date is not None
+            else None,
+            "avg_resolve_time_seconds": self.avg_resolve_time_seconds,
+            "avg_finish_time_seconds": self.avg_finish_time_seconds,
+            "bug_count": self.bug_count,
+            "created_at": self.created_at.isoformat()
+            if self.created_at is not None
+            else None,
+            "updated_at": self.updated_at.isoformat()
+            if self.updated_at is not None
+            else None,
+        }
+
+
+class AvgMetricByProjectDeveloper(Base):
+    """各项目各开发人员的故障平均完成时长表"""
+
+    __tablename__ = "avg_metric_by_project_developer"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    project_id = Column(String(50), nullable=False)
+    project_name = Column(String(255))
+    developer_id = Column(String(50), nullable=False)
+    developer_name = Column(String(100))
+    metric_date = Column(DateTime)
+    avg_resolve_time_seconds = Column(BigInteger, default=0)
+    avg_finish_time_seconds = Column(BigInteger, default=0)
+    bug_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_id": self.project_id,
+            "project_name": self.project_name,
+            "developer_id": self.developer_id,
+            "developer_name": self.developer_name,
+            "metric_date": self.metric_date.isoformat()
+            if self.metric_date is not None
+            else None,
+            "avg_resolve_time_seconds": self.avg_resolve_time_seconds,
+            "avg_finish_time_seconds": self.avg_finish_time_seconds,
+            "bug_count": self.bug_count,
             "created_at": self.created_at.isoformat()
             if self.created_at is not None
             else None,

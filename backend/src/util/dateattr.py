@@ -1,13 +1,15 @@
 from datetime import date, datetime, timedelta, timezone
 
+from pymysql import Date
+
 from src.holiday import is_holiday_or_compday as _check_holiday
 
 
 class DateAttr:
     """日期相关工具类"""
 
-    def __init__(self) -> None:
-        self._date = date.today()
+    def __init__(self, dt: date | datetime | None = None) -> None:
+        self._date = dt or date.today()
 
     @property
     def weekday(self):
@@ -95,7 +97,14 @@ if __name__ == "__main__":
 
     print(is_holiday_or_compday(date(2026, 1, 1)))  # 元旦，应该返回 (True, False)
     print(is_holiday_or_compday(date(2026, 1, 4)))  # 春节补班，应该返回 (False, True)
-    print(is_holiday_or_compday(date(2026, 1, 27)))  # 春节，应该返回 (True, False)
+    print(is_holiday_or_compday(date(2026, 5, 10)))  # 春节，应该返回 (True, False)
+
+    dt = DateAttr(date(2026, 5, 9))
+    print(dt.is_workday)
+
+    dt2 = DateAttr()
+    print(dt2.is_workday)
+    print(dt2.firstday_of_week)
 
     # 测试今天
     today = date.today()

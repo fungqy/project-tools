@@ -22,14 +22,6 @@ TASK_TYPE_TASK = "task_reminder"
 TASK_TYPE_SONAR = "sonar_reminder"
 TASK_TYPE_REPORT = "report_data"
 
-# 默认调度配置
-DEFAULT_SCHEDULER_CONFIGS = {
-    TASK_TYPE_STORY: {"day_of_week": "mon-fri", "default_time": "08:30"},
-    TASK_TYPE_TASK: {"day_of_week": "mon-fri", "default_time": "17:20"},
-    TASK_TYPE_SONAR: {"day_of_week": "mon-fri", "default_time": "09:00"},
-    TASK_TYPE_REPORT: {"day_of_week": "fri", "default_time": "18:00"},
-}
-
 
 def parse_time(time_str: str) -> tuple[int, int]:
     """解析 HH:MM 格式时间字符串为 (hour, minute)"""
@@ -42,49 +34,6 @@ def parse_time(time_str: str) -> tuple[int, int]:
         return hour, minute
     except (ValueError, IndexError):
         return 0, 0
-
-
-def get_scheduler_configs():
-    """从数据库获取调度器配置"""
-    from db.database import get_session
-    from db.models import SchedulerConfig
-
-    session = get_session()
-    try:
-        configs = session.query(SchedulerConfig).all()
-        result = {}
-        for config in configs:
-            result[config.task_type] = {
-                "enabled": config.enabled,
-                "day_of_week": config.day_of_week,
-                "default_time": config.default_time,
-            }
-        return result
-    finally:
-        session.close()
-
-
-def init_scheduler_configs_if_needed():
-    """如果调度器配置表为空，初始化默认配置"""
-    from db.database import get_session
-    from db.models import SchedulerConfig
-
-    session = get_session()
-    try:
-        count = session.query(SchedulerConfig).count()
-        if count == 0:
-            for task_type, config in DEFAULT_SCHEDULER_CONFIGS.items():
-                new_config = SchedulerConfig(
-                    task_type=task_type,
-                    enabled=True,
-                    day_of_week=config["day_of_week"],
-                    default_time=config["default_time"],
-                )
-                session.add(new_config)
-            session.commit()
-            logger.info("调度器配置已初始化")
-    finally:
-        session.close()
 
 
 def get_user_jira_auth(user_id: int):
@@ -207,9 +156,11 @@ def module_run(module, remind_config: ProjectRemindConfig):
             # post(remind_config.robot_key, message)
 
 
-def check_time_match(config_time: str, default_time: str, now: datetime) -> bool:
+def check_time_match(config_time: str, now: datetime) -> bool:
     """检查当前时间是否匹配指定的提醒时间"""
-    hour, minute = parse_time(config_time) if config_time else parse_time(default_time)
+    if not config_time:
+        return False
+    hour, minute = parse_time(config_time)
     return now.hour == hour and now.minute == minute
 
 
@@ -253,21 +204,9 @@ def run_report_data():
     """执行报表数据生成"""
     from task.report_rdm_data import process
 
-    # 获取报表数据生成的调度配置
-    configs = get_scheduler_configs()
-    report_config = configs.get(TASK_TYPE_REPORT, {})
-    day_of_week = report_config.get("day_of_week", "fri")
-
-    # 检查是否是报表生成日
-    weekday_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-    allowed_weekdays = [
-        weekday_map[d.strip()]
-        for d in day_of_week.split("-")
-        if d.strip() in weekday_map
-    ]
-
-    if datetime.now().weekday() not in allowed_weekdays:
-        logger.info(f"非报表生成日({day_of_week})，跳过报表数据生成")
+    dateattr = DateAttr()
+    if not dateattr.is_workday:
+        logger.info("非工作日，跳过报表数据生成")
         return
 
     logger.info("开始执行报表数据生成...")
@@ -286,9 +225,6 @@ def run_all_story_tasks():
         logger.info("非工作日，跳过所有故事提醒任务")
         return
 
-    configs = get_scheduler_configs()
-    story_config = configs.get(TASK_TYPE_STORY, {})
-    default_time = story_config.get("default_time", "08:30")
     now = datetime.now()
 
     logger.info(
@@ -298,12 +234,16 @@ def run_all_story_tasks():
     project_configs = get_project_configs()
     for config in project_configs:
         if config.need_story_remind:
+            # 检查项目是否配置了提醒时间
+            if not config.story_remind_time:
+                logger.info(f"[{config.project_name}] 未配置故事提醒时间，跳过")
+                continue
             # 检查时间是否匹配
-            if check_time_match(config.story_remind_time, default_time, now):
+            if check_time_match(config.story_remind_time, now):
                 run_story_task(config)
             else:
                 logger.info(
-                    f"[{config.project_name}] 当前时间不匹配故事提醒时间({config.story_remind_time or default_time})，跳过"
+                    f"[{config.project_name}] 当前时间不匹配故事提醒时间({config.story_remind_time})，跳过"
                 )
 
 
@@ -314,9 +254,6 @@ def run_all_task_reminders():
         logger.info("非工作日，跳过所有任务提醒")
         return
 
-    configs = get_scheduler_configs()
-    task_config = configs.get(TASK_TYPE_TASK, {})
-    default_time = task_config.get("default_time", "17:20")
     now = datetime.now()
 
     logger.info(
@@ -326,12 +263,16 @@ def run_all_task_reminders():
     project_configs = get_project_configs()
     for config in project_configs:
         if config.need_task_remind:
+            # 检查项目是否配置了提醒时间
+            if not config.task_remind_time:
+                logger.info(f"[{config.project_name}] 未配置任务提醒时间，跳过")
+                continue
             # 检查时间是否匹配
-            if check_time_match(config.task_remind_time, default_time, now):
+            if check_time_match(config.task_remind_time, now):
                 run_task_reminder(config)
             else:
                 logger.info(
-                    f"[{config.project_name}] 当前时间不匹配任务提醒时间({config.task_remind_time or default_time})，跳过"
+                    f"[{config.project_name}] 当前时间不匹配任务提醒时间({config.task_remind_time})，跳过"
                 )
 
 
@@ -342,9 +283,6 @@ def run_all_sonar_scan_reminders():
         logger.info("非工作日，跳过所有Sonar扫描提醒")
         return
 
-    configs = get_scheduler_configs()
-    sonar_config = configs.get(TASK_TYPE_SONAR, {})
-    default_time = sonar_config.get("default_time", "09:00")
     now = datetime.now()
 
     logger.info(
@@ -354,85 +292,69 @@ def run_all_sonar_scan_reminders():
     project_configs = get_project_configs()
     for config in project_configs:
         if config.need_sonar_scan_remind:
+            # 检查项目是否配置了提醒时间
+            if not config.sonar_remind_time:
+                logger.info(f"[{config.project_name}] 未配置Sonar提醒时间，跳过")
+                continue
             # 检查时间是否匹配
-            if check_time_match(config.sonar_remind_time, default_time, now):
+            if check_time_match(config.sonar_remind_time, now):
                 run_sonar_scan_reminder(config)
             else:
                 logger.info(
-                    f"[{config.project_name}] 当前时间不匹配Sonar提醒时间({config.sonar_remind_time or default_time})，跳过"
+                    f"[{config.project_name}] 当前时间不匹配Sonar提醒时间({config.sonar_remind_time})，跳过"
                 )
 
 
 class TaskScheduler:
-    """任务调度器"""
+    """任务调度器
+
+    所有任务每天每分钟触发检查，由 DateAttr.is_workday 和项目配置决定是否执行。
+    """
 
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self._setup_jobs()
 
-    def _get_cron_trigger(self, task_type: str):
-        """根据任务类型获取CronTrigger"""
-        configs = get_scheduler_configs()
-        config = configs.get(task_type, DEFAULT_SCHEDULER_CONFIGS.get(task_type, {}))
+    def _setup_jobs(self):
+        """设置定时任务，每分钟触发检查"""
+        # 所有任务每天都触发，由 run_all_xxx 函数检查 is_workday 和项目时间配置
+        trigger = CronTrigger(day_of_week="*")
 
-        if not config.get("enabled", True):
-            return None
-
-        day_of_week = config.get("day_of_week", "mon-fri")
-        default_time = config.get("default_time", "08:30")
-        hour, minute = parse_time(default_time)
-
-        return CronTrigger(
-            hour=hour,
-            minute=minute,
-            day_of_week=day_of_week,
+        # 故事提醒
+        self.scheduler.add_job(
+            run_all_story_tasks,
+            trigger,
+            id=TASK_TYPE_STORY,
+            name="故事提醒任务",
+            replace_existing=True,
         )
 
-    def _setup_jobs(self):
-        """设置定时任务"""
-        # 故事提醒
-        trigger = self._get_cron_trigger(TASK_TYPE_STORY)
-        if trigger:
-            self.scheduler.add_job(
-                run_all_story_tasks,
-                trigger,
-                id=TASK_TYPE_STORY,
-                name="故事提醒任务",
-                replace_existing=True,
-            )
-
         # 任务到期提醒
-        trigger = self._get_cron_trigger(TASK_TYPE_TASK)
-        if trigger:
-            self.scheduler.add_job(
-                run_all_task_reminders,
-                trigger,
-                id=TASK_TYPE_TASK,
-                name="任务到期提醒",
-                replace_existing=True,
-            )
+        self.scheduler.add_job(
+            run_all_task_reminders,
+            trigger,
+            id=TASK_TYPE_TASK,
+            name="任务到期提醒",
+            replace_existing=True,
+        )
 
         # Sonar扫描提醒
-        trigger = self._get_cron_trigger(TASK_TYPE_SONAR)
-        if trigger:
-            self.scheduler.add_job(
-                run_all_sonar_scan_reminders,
-                trigger,
-                id=TASK_TYPE_SONAR,
-                name="Sonar扫描提醒",
-                replace_existing=True,
-            )
+        self.scheduler.add_job(
+            run_all_sonar_scan_reminders,
+            trigger,
+            id=TASK_TYPE_SONAR,
+            name="Sonar扫描提醒",
+            replace_existing=True,
+        )
 
         # 报表数据生成
-        trigger = self._get_cron_trigger(TASK_TYPE_REPORT)
-        if trigger:
-            self.scheduler.add_job(
-                run_report_data,
-                trigger,
-                id=TASK_TYPE_REPORT,
-                name="报表数据生成",
-                replace_existing=True,
-            )
+        self.scheduler.add_job(
+            run_report_data,
+            trigger,
+            id=TASK_TYPE_REPORT,
+            name="报表数据生成",
+            replace_existing=True,
+        )
 
     def reload_jobs(self):
         """重新加载所有任务配置"""
@@ -444,8 +366,6 @@ class TaskScheduler:
 
     def start(self):
         """启动调度器"""
-        # 初始化默认配置
-        init_scheduler_configs_if_needed()
         self.scheduler.start()
         logger.info("任务调度器已启动")
 
@@ -485,37 +405,6 @@ class TaskScheduler:
             run_report_data()
             return {"status": "success", "message": "报表数据生成任务已执行"}
         return {"status": "error", "message": f"未知任务: {job_id}"}
-
-    def update_job_schedule(
-        self,
-        job_id: str,
-        day_of_week: str,
-        default_time: str,
-        enabled: bool = True,
-    ):
-        """更新任务调度时间"""
-        from db.database import get_session
-        from db.models import SchedulerConfig
-
-        session = get_session()
-        try:
-            config = (
-                session.query(SchedulerConfig)
-                .filter(SchedulerConfig.task_type == job_id)
-                .first()
-            )
-            if config:
-                setattr(config, "day_of_week", day_of_week)
-                setattr(config, "default_time", default_time)
-                setattr(config, "enabled", enabled)
-                session.commit()
-
-                # 重新加载任务
-                self.reload_jobs()
-                return {"status": "success", "message": f"任务 {job_id} 调度时间已更新"}
-            return {"status": "error", "message": f"未找到任务: {job_id}"}
-        finally:
-            session.close()
 
 
 # 全局调度器实例
