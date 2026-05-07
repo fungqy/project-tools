@@ -114,6 +114,8 @@ class ProjectConfig(Base):
     sonar_key_prefix = Column(String(100), default="")
     sonar_scan_remind_default_person = Column(String(100), default="")
     robot_key = Column(String(100), default="")
+    jira_user = Column(String(100), default="")
+    jira_token = Column(String(255), default="")
     jira_auth_config_id = Column(
         BigInteger, ForeignKey("jira_auth_configs.id", ondelete="SET NULL")
     )
@@ -164,6 +166,12 @@ class ProjectConfig(Base):
             data["jira_user"] = auth_data["jira_user"]
             if include_token:
                 data["jira_token"] = auth_data.get("jira_token")
+        else:
+            # 直接从项目配置获取
+            data["jira_user"] = getattr(self, "jira_user", "")
+            data["jira_token"] = (
+                getattr(self, "jira_token", "") if include_token else ""
+            )
         # 如果包含提醒设置
         if self.reminder_settings is not None:
             reminder_data = self.reminder_settings.to_dict()
@@ -171,6 +179,11 @@ class ProjectConfig(Base):
             data["need_task_remind"] = reminder_data["need_task_remind"]
             data["need_sonar_scan_remind"] = reminder_data["need_sonar_scan_remind"]
             data["need_report_data"] = reminder_data["need_report_data"]
+            data["story_remind_time"] = reminder_data["story_remind_time"]
+            data["task_remind_time"] = reminder_data["task_remind_time"]
+            data["sonar_remind_time"] = reminder_data["sonar_remind_time"]
+            data["report_data_time"] = reminder_data["report_data_time"]
+            data["reminder_settings"] = reminder_data
         return data
 
 

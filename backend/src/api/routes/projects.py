@@ -206,12 +206,17 @@ async def create_project(
 
         # 创建提醒设置
         if config.reminder_settings:
+            rs = config.reminder_settings
             reminder_settings = ProjectReminderSettings(
                 project_config_id=new_project.id,
-                need_story_remind=config.reminder_settings.need_story_remind,
-                need_task_remind=config.reminder_settings.need_task_remind,
-                need_sonar_scan_remind=config.reminder_settings.need_sonar_scan_remind,
-                need_report_data=config.reminder_settings.need_report_data,
+                need_story_remind=rs.need_story_remind,
+                need_task_remind=rs.need_task_remind,
+                need_sonar_scan_remind=rs.need_sonar_scan_remind,
+                need_report_data=rs.need_report_data,
+                story_remind_time=getattr(rs, "story_remind_time", None),
+                task_remind_time=getattr(rs, "task_remind_time", None),
+                sonar_remind_time=getattr(rs, "sonar_remind_time", None),
+                report_data_time=getattr(rs, "report_data_time", None),
             )
             session.add(reminder_settings)
 
@@ -251,7 +256,15 @@ async def update_project(
         # 分离提醒设置和项目配置
         reminder_settings_data = update_data.pop("reminder_settings", None)
 
+        # 将 reminder_settings_data 转换为 dict（如果是 Pydantic 模型）
+        if reminder_settings_data is not None and hasattr(
+            reminder_settings_data, "dict"
+        ):
+            reminder_settings_data = reminder_settings_data.dict(exclude_unset=True)
+
         for key, value in update_data.items():
+            if key == "reminder_settings":
+                continue
             if hasattr(project, key):
                 setattr(project, key, value)
 

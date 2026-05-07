@@ -56,7 +56,7 @@ async function handleTriggerJob(jobId: string) {
             <el-icon :size="32"><Bell /></el-icon>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ projects.filter(p => p.need_progress_remind).length }}</span>
+            <span class="stat-value">{{ projects.filter(p => p.need_story_remind).length }}</span>
             <span class="stat-label">已启用提醒</span>
           </div>
         </el-card>
@@ -123,8 +123,8 @@ async function handleTriggerJob(jobId: string) {
             <el-table-column prop="board_name" label="JIRA面板" />
             <el-table-column label="进度提醒" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.need_progress_remind ? 'success' : 'info'" size="small">
-                  {{ row.need_progress_remind ? '已启用' : '未启用' }}
+                <el-tag :type="row.need_story_remind ? 'success' : 'info'" size="small">
+                  {{ row.need_story_remind ? '已启用' : '未启用' }}
                 </el-tag>
               </template>
             </el-table-column>

@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS project_configs (
     sonar_key_prefix VARCHAR(100) DEFAULT '' COMMENT 'Sonar Key前缀',
     sonar_scan_remind_default_person VARCHAR(100) DEFAULT '' COMMENT 'Sonar扫描默认提醒人',
     robot_key VARCHAR(100) DEFAULT '' COMMENT '企业微信机器人key',
+    jira_user VARCHAR(100) DEFAULT '' COMMENT 'JIRA用户名',
+    jira_token VARCHAR(255) DEFAULT '' COMMENT 'JIRA Token',
     jira_auth_config_id BIGINT COMMENT '关联的JIRA认证配置ID',
     created_by BIGINT COMMENT '创建用户ID',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

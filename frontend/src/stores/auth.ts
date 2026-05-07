@@ -19,8 +19,8 @@ export const useAuthStore = defineStore("auth", () => {
     async function fetchCurrentUser() {
         try {
             const response = await authApi.getCurrentUser();
-            user.value = response.data;
-            return response.data;
+            user.value = response;
+            return response;
         } catch {
             logout();
             throw new Error("Token已过期");
