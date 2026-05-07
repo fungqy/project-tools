@@ -80,8 +80,7 @@ async function handleRegister() {
     <div class="login-box">
       <div class="login-header">
         <el-icon :size="48" color="#409eff"><Monitor /></el-icon>
-        <h1>项目工具平台</h1>
-        <p>Project Tools Platform</p>
+        <h1>项目工具</h1>
       </div>
 
       <!-- 登录表单 -->

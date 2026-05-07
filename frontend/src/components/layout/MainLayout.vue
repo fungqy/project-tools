@@ -50,7 +50,7 @@ function toggleCollapse() {
     <el-aside :class="['sidebar', { collapsed: isCollapse }]">
       <div class="logo">
         <el-icon :size="24"><Monitor /></el-icon>
-        <span v-show="!isCollapse">项目工具平台</span>
+        <span v-show="!isCollapse">项目工具</span>
       </div>
       <el-menu
         :default-active="activeMenu"
