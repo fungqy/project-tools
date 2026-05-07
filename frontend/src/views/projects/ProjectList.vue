@@ -202,7 +202,7 @@ async function handleDelete(row: ProjectConfig) {
             <el-switch v-model="formData.need_story_remind" />
           </el-form-item>
           <el-form-item v-if="formData.need_story_remind" label="提醒时间" class="inline-time">
-            <el-input v-model="formData.story_remind_time" placeholder="HH:MM" style="width: 100px;" />
+            <el-time-select v-model="formData.story_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
           </el-form-item>
         </div>
         <div class="form-row">
@@ -210,7 +210,7 @@ async function handleDelete(row: ProjectConfig) {
             <el-switch v-model="formData.need_task_remind" />
           </el-form-item>
           <el-form-item v-if="formData.need_task_remind" label="提醒时间" class="inline-time">
-            <el-input v-model="formData.task_remind_time" placeholder="HH:MM" style="width: 100px;" />
+            <el-time-select v-model="formData.task_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
           </el-form-item>
         </div>
         <div class="form-row">
@@ -218,7 +218,7 @@ async function handleDelete(row: ProjectConfig) {
             <el-switch v-model="formData.need_sonar_scan_remind" />
           </el-form-item>
           <el-form-item v-if="formData.need_sonar_scan_remind" label="提醒时间" class="inline-time">
-            <el-input v-model="formData.sonar_remind_time" placeholder="HH:MM" style="width: 100px;" />
+            <el-time-select v-model="formData.sonar_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
           </el-form-item>
         </div>
         <div class="form-row">
@@ -226,7 +226,7 @@ async function handleDelete(row: ProjectConfig) {
             <el-switch v-model="formData.need_report_data" />
           </el-form-item>
           <el-form-item v-if="formData.need_report_data" label="生成时间" class="inline-time">
-            <el-input v-model="formData.report_data_time" placeholder="HH:MM" style="width: 100px;" />
+            <el-time-select v-model="formData.report_data_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
           </el-form-item>
         </div>
       </el-form>
