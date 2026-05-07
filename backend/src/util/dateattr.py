@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from holiday.holiday_service import is_holiday_or_compday as _check_holiday
+from src.holiday import is_holiday_or_compday as _check_holiday
 
 
 class DateAttr:
@@ -91,11 +91,11 @@ class DateAttr:
 
 
 if __name__ == "__main__":
-    from holiday.holiday_service import is_holiday_or_compday
+    from src.holiday import is_holiday_or_compday
 
-    print(is_holiday_or_compday(date(2025, 1, 1)))  # 元旦，应该返回 (True, False)
-    print(is_holiday_or_compday(date(2025, 1, 26)))  # 春节补班，应该返回 (False, True)
-    print(is_holiday_or_compday(date(2025, 1, 27)))  # 春节，应该返回 (True, False)
+    print(is_holiday_or_compday(date(2026, 1, 1)))  # 元旦，应该返回 (True, False)
+    print(is_holiday_or_compday(date(2026, 1, 4)))  # 春节补班，应该返回 (False, True)
+    print(is_holiday_or_compday(date(2026, 1, 27)))  # 春节，应该返回 (True, False)
 
     # 测试今天
     today = date.today()

@@ -3,7 +3,8 @@ from datetime import date
 import pandas as pd
 
 from db.dboperator import DbOperator
-from holiday.holiday_service import get_holiday_data_for_db
+
+from .holiday_service import get_holiday_data_for_db
 
 
 def update_holidays_table(years: list[int] | None = None):
