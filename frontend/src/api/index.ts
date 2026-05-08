@@ -23,6 +23,10 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response.data,
   (error: AxiosError<{ detail?: string }>) => {
+    // 401 错误不显示错误消息，由路由守卫处理跳转登录
+    if (error.response?.status === 401) {
+      return Promise.reject(error)
+    }
     const message = error.response?.data?.detail || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)

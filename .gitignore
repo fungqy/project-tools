@@ -23,3 +23,10 @@ logs/
 .env
 
 node_modules
+
+# agent
+.mcp.json
+CLAUDE.md
+.claude
+.claude-flow
+ruvector.db

@@ -103,136 +103,158 @@ async function handleDelete(row: ProjectConfig) {
 
 <template>
   <div class="projects-page">
-    <div class="page-header">
-      <h2>项目管理</h2>
-      <el-button v-if="isAdmin" type="primary" @click="openAddDialog">
-        <el-icon><Plus /></el-icon>
+    <!-- Page header -->
+    <div class="page-header page-enter">
+      <div class="page-header-left">
+        <p></p>
+      </div>
+      <el-button v-if="isAdmin" type="primary" class="add-btn" @click="openAddDialog">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
         新建项目
       </el-button>
     </div>
 
-    <el-card class="projects-card">
-      <el-table :data="projects" v-loading="loading" stripe>
+    <!-- Projects table card -->
+    <div class="projects-card page-enter" style="animation-delay: 0.06s">
+      <el-table :data="projects" v-loading="loading" stripe class="projects-table">
         <el-table-column prop="project_name" label="项目名称" min-width="150" />
-        <el-table-column prop="board_name" label="JIRA面板" min-width="120" />
-        <el-table-column prop="gitlab_group_key" label="GitLab Group" width="120" />
+        <el-table-column prop="board_name" label="JIRA 面板" min-width="120" />
+        <el-table-column prop="gitlab_group_key" label="GitLab Group" width="130" />
         <el-table-column label="进度提醒" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.need_story_remind ? 'success' : 'info'" size="small">
-              {{ row.need_story_remind ? '已启用' : '未启用' }}
-            </el-tag>
-            <span v-if="row.need_story_remind && row.story_remind_time" class="remind-time">{{ row.story_remind_time }}</span>
+            <span v-if="row.need_story_remind" class="reminder-on">
+              {{ row.story_remind_time }}
+            </span>
+            <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
         <el-table-column label="任务提醒" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.need_task_remind ? 'success' : 'info'" size="small">
-              {{ row.need_task_remind ? '已启用' : '未启用' }}
-            </el-tag>
-            <span v-if="row.need_task_remind && row.task_remind_time" class="remind-time">{{ row.task_remind_time }}</span>
+            <span v-if="row.need_task_remind" class="reminder-on">
+              {{ row.task_remind_time }}
+            </span>
+            <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
-        <el-table-column label="Sonar扫描" width="120" align="center">
+        <el-table-column label="Sonar 扫描" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.need_sonar_scan_remind ? 'success' : 'info'" size="small">
-              {{ row.need_sonar_scan_remind ? '已启用' : '未启用' }}
-            </el-tag>
-            <span v-if="row.need_sonar_scan_remind && row.sonar_remind_time" class="remind-time">{{ row.sonar_remind_time }}</span>
+            <span v-if="row.need_sonar_scan_remind" class="reminder-on">
+              {{ row.sonar_remind_time }}
+            </span>
+            <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
         <el-table-column label="报表数据" width="120" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.need_report_data ? 'success' : 'info'" size="small">
-              {{ row.need_report_data ? '已启用' : '未启用' }}
-            </el-tag>
-            <span v-if="row.need_report_data && row.report_data_time" class="remind-time">{{ row.report_data_time }}</span>
+            <span v-if="row.need_report_data" class="reminder-on">
+              {{ row.report_data_time }}
+            </span>
+            <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="150" align="center">
+        <el-table-column label="操作" width="140" align="center">
           <template #default="{ row }">
             <el-button v-if="canEditProject(row)" type="primary" link @click="openEditDialog(row)">编辑</el-button>
             <el-button v-if="canDeleteProject(row)" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
-  </el-table>
-    </el-card>
+      </el-table>
+    </div>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="700px">
-      <el-form :model="formData" label-width="130px" class="project-form">
-        <div class="form-row">
-          <el-form-item label="JIRA面板ID" required class="flex-1">
-            <el-input v-model="formData.board_id" :disabled="isEdit" />
-          </el-form-item>
-          <el-form-item label="JIRA面板名称" required class="flex-1">
-            <el-input v-model="formData.board_name" />
-          </el-form-item>
+    <!-- Dialog -->
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="640px" class="project-dialog">
+      <el-form :model="formData" label-width="108px" class="project-form">
+        <!-- RDM Section -->
+        <div class="form-section">
+          <div class="section-title">RDM 配置</div>
+          <div class="form-grid">
+            <el-form-item label="面板 ID" required>
+              <el-input v-model="formData.board_id" :disabled="isEdit" />
+            </el-form-item>
+            <el-form-item label="面板名称" required>
+              <el-input v-model="formData.board_name" />
+            </el-form-item>
+            <el-form-item label="项目 ID" required>
+              <el-input v-model="formData.project_id" :disabled="isEdit" />
+            </el-form-item>
+            <el-form-item label="项目名称" required>
+              <el-input v-model="formData.project_name" />
+            </el-form-item>
+            <el-form-item label="JIRA 用户">
+              <el-input v-model="formData.jira_user" />
+            </el-form-item>
+            <el-form-item label="JIRA 密码">
+              <el-input v-model="formData.jira_token" type="password" show-password />
+            </el-form-item>
+          </div>
         </div>
-        <div class="form-row">
-          <el-form-item label="JIRA项目ID" required class="flex-1">
-            <el-input v-model="formData.project_id" :disabled="isEdit" />
-          </el-form-item>
-          <el-form-item label="JIRA项目名称" required class="flex-1">
-            <el-input v-model="formData.project_name" />
-          </el-form-item>
+
+        <!-- GitLab Section -->
+        <div class="form-section">
+          <div class="section-title">GitLab 配置</div>
+          <div class="form-grid">
+            <el-form-item label="Group Key" class="full-width">
+              <el-input v-model="formData.gitlab_group_key" />
+            </el-form-item>
+          </div>
         </div>
-        <el-form-item label="GitLab Group Key">
-          <el-input v-model="formData.gitlab_group_key" />
-        </el-form-item>
-        <div class="form-row">
-          <el-form-item label="JIRA 用户名" class="flex-1">
-            <el-input v-model="formData.jira_user" />
-          </el-form-item>
-          <el-form-item label="JIRA Token" class="flex-1">
-            <el-input v-model="formData.jira_token" type="password" show-password />
-          </el-form-item>
+
+        <!-- Sonar Section -->
+        <div class="form-section">
+          <div class="section-title">Sonar 配置</div>
+          <div class="form-grid">
+            <el-form-item label="项目 Key 前缀">
+              <el-input v-model="formData.sonar_key_prefix" />
+            </el-form-item>
+            <el-form-item label="默认提醒人">
+              <el-input v-model="formData.sonar_scan_remind_default_person" />
+            </el-form-item>
+          </div>
         </div>
-        <el-form-item label="企微机器人Key">
-          <el-input v-model="formData.robot_key" />
-        </el-form-item>
-        <div class="form-row">
-          <el-form-item label="Sonar Key 前缀" class="flex-1">
-            <el-input v-model="formData.sonar_key_prefix" />
+
+        <!-- Reminder Section -->
+        <div class="form-section">
+          <div class="section-title">定时任务提醒</div>
+          <el-form-item label="企微机器人 Key" class="full-width">
+            <el-input v-model="formData.robot_key" />
           </el-form-item>
-          <el-form-item label="Sonar默认提醒人" class="flex-1">
-            <el-input v-model="formData.sonar_scan_remind_default_person" />
-          </el-form-item>
-        </div>
-        <div class="form-row">
-          <el-form-item label="启用进度提醒" class="inline-switch">
-            <el-switch v-model="formData.need_story_remind" />
-          </el-form-item>
-          <el-form-item v-if="formData.need_story_remind" label="提醒时间" class="inline-time">
-            <el-time-select v-model="formData.story_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
-          </el-form-item>
-        </div>
-        <div class="form-row">
-          <el-form-item label="启用任务提醒" class="inline-switch">
-            <el-switch v-model="formData.need_task_remind" />
-          </el-form-item>
-          <el-form-item v-if="formData.need_task_remind" label="提醒时间" class="inline-time">
-            <el-time-select v-model="formData.task_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
-          </el-form-item>
-        </div>
-        <div class="form-row">
-          <el-form-item label="启用Sonar提醒" class="inline-switch">
-            <el-switch v-model="formData.need_sonar_scan_remind" />
-          </el-form-item>
-          <el-form-item v-if="formData.need_sonar_scan_remind" label="提醒时间" class="inline-time">
-            <el-time-select v-model="formData.sonar_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
-          </el-form-item>
-        </div>
-        <div class="form-row">
-          <el-form-item label="启用报表数据" class="inline-switch">
-            <el-switch v-model="formData.need_report_data" />
-          </el-form-item>
-          <el-form-item v-if="formData.need_report_data" label="生成时间" class="inline-time">
-            <el-time-select v-model="formData.report_data_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" placeholder="选择时间" style="width: 120px" />
-          </el-form-item>
+          <div class="reminder-cards">
+            <div class="reminder-card">
+              <div class="reminder-card-header">
+                <el-switch v-model="formData.need_story_remind" />
+                <span>进度提醒</span>
+              </div>
+              <el-time-select v-if="formData.need_story_remind" v-model="formData.story_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" style="width: 100%" />
+            </div>
+            <div class="reminder-card">
+              <div class="reminder-card-header">
+                <el-switch v-model="formData.need_task_remind" />
+                <span>任务提醒</span>
+              </div>
+              <el-time-select v-if="formData.need_task_remind" v-model="formData.task_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" style="width: 100%" />
+            </div>
+            <div class="reminder-card">
+              <div class="reminder-card-header">
+                <el-switch v-model="formData.need_sonar_scan_remind" />
+                <span>扫描提醒</span>
+              </div>
+              <el-time-select v-if="formData.need_sonar_scan_remind" v-model="formData.sonar_remind_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" style="width: 100%" />
+            </div>
+            <div class="reminder-card">
+              <div class="reminder-card-header">
+                <el-switch v-model="formData.need_report_data" />
+                <span>报表生成</span>
+              </div>
+              <el-time-select v-if="formData.need_report_data" v-model="formData.report_data_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" style="width: 100%" />
+            </div>
+          </div>
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button @click="dialogVisible = false" class="cancel-btn">取消</el-button>
+        <el-button type="primary" @click="handleSave" class="save-btn">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -240,52 +262,168 @@ async function handleDelete(row: ProjectConfig) {
 
 <style scoped lang="scss">
 .projects-page {
-  .page-header {
+  max-width: 1280px;
+}
+
+// ── Page Header ──────────────────────────────────────────────
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+
+  &-left {
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--ink-primary);
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    p {
+      font-size: 13px;
+      color: var(--ink-tertiary);
+    }
+  }
+}
+
+.add-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+// ── Projects Card ─────────────────────────────────────────────
+.projects-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-xs);
+}
+
+.projects-table {
+  :deep(.el-table__header th) {
+    background: var(--bg-muted);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 11px 12px;
+  }
+
+  :deep(.el-table__row td) {
+    padding: 12px;
+    font-size: 13px;
+    color: var(--ink-primary);
+  }
+
+  :deep(.el-table__row:hover td) {
+    background: var(--bg-base) !important;
+  }
+}
+
+.reminder-on {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-off {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+}
+
+// ── Dialog Form ────────────────────────────────────────────────
+.project-form {
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
+  }
+}
+
+.form-section {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+
+  .section-title {
+    font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-primary);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #D1D5DB;
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+
+  .el-form-item {
+    margin-bottom: 0;
+
+    :deep(.el-form-item__label) {
+      width: 108px;
+      font-weight: 500;
+      font-size: 13px;
+    }
+  }
+
+  .full-width {
+    grid-column: 1 / -1;
+  }
+}
+
+.reminder-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reminder-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  border: 1px solid #E5E7EB;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    gap: 10px;
 
-    h2 {
-      margin: 0;
-      font-size: 20px;
+    span {
+      font-size: 13px;
       font-weight: 600;
+      color: var(--ink-primary);
     }
   }
+}
 
-  .projects-card {
-    :deep(.el-table) {
-      .el-table__header th {
-        background: #f5f7fa;
-      }
-    }
+.cancel-btn {
+  border-radius: var(--radius-sm);
+}
 
-    .remind-time {
-      display: block;
-      font-size: 11px;
-      color: #909399;
-      margin-top: 2px;
-    }
-  }
+.save-btn {
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
 
-  .project-form {
-    .form-row {
-      display: flex;
-      gap: 16px;
-
-      :deep(.el-form-item) {
-        margin-bottom: 18px;
-        flex: 1;
-
-        &.inline-switch {
-          flex: 0 0 auto;
-        }
-
-        &.inline-time {
-          flex: 0 0 180px;
-        }
-      }
-    }
+:global(.project-dialog) {
+  .el-dialog__body {
+    padding: 20px 24px;
+    max-height: 58vh;
+    overflow-y: auto;
   }
 }
 </style>

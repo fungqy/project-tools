@@ -116,6 +116,7 @@ def get_project_configs():
 
             result.append(
                 ProjectRemindConfig(
+                    project_config_id=config.id,
                     board_id=str(config.board_id),
                     board_name=str(config.board_name),
                     project_id=str(config.project_id),
@@ -164,31 +165,185 @@ def check_time_match(config_time: str, now: datetime) -> bool:
     return now.hour == hour and now.minute == minute
 
 
-def run_story_task(remind_config: ProjectRemindConfig):
+def record_execution(
+    project_config_id: int,
+    task_type: str,
+    scheduled_time: datetime,
+    status: str,
+    error_message: str = "",
+):
+    """记录任务执行日志"""
+    from db.database import get_session
+    from db.models import TaskExecutionLog
+
+    session = get_session()
+    try:
+        log = TaskExecutionLog(
+            project_config_id=project_config_id,
+            task_type=task_type,
+            scheduled_time=scheduled_time,
+            executed_at=datetime.now(),
+            status=status,
+            error_message=error_message,
+        )
+        session.add(log)
+        session.commit()
+    except Exception as e:
+        logger.error(f"记录执行日志失败: {e}")
+    finally:
+        session.close()
+
+
+def get_today_tasks_status():
+    """获取今日任务状态"""
+    from sqlalchemy import and_
+
+    from db.database import get_session
+    from db.models import ProjectConfig, TaskExecutionLog
+
+    session = get_session()
+    try:
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        tomorrow = today.replace(hour=23, minute=59, second=59)
+
+        # 获取今日所有执行记录
+        logs = (
+            session.query(TaskExecutionLog)
+            .filter(
+                and_(
+                    TaskExecutionLog.scheduled_time >= today,
+                    TaskExecutionLog.scheduled_time <= tomorrow,
+                )
+            )
+            .all()
+        )
+
+        # 构建执行记录映射 {(project_config_id, task_type): log}
+        log_map = {(log.project_config_id, log.task_type): log for log in logs}
+
+        # 获取所有项目配置
+        configs = session.query(ProjectConfig).all()
+
+        result = []
+        now = datetime.now()
+
+        for config in configs:
+            settings = config.reminder_settings
+            if not settings:
+                continue
+
+            # 检查每个任务类型
+            tasks = [
+                (
+                    "story_reminder",
+                    settings.need_story_remind,
+                    settings.story_remind_time,
+                ),
+                ("task_reminder", settings.need_task_remind, settings.task_remind_time),
+                (
+                    "sonar_reminder",
+                    settings.need_sonar_scan_remind,
+                    settings.sonar_remind_time,
+                ),
+                ("report_data", settings.need_report_data, settings.report_data_time),
+            ]
+
+            for task_type, needed, remind_time in tasks:
+                if not needed or not remind_time:
+                    continue
+
+                # 计算计划执行时间
+                hour, minute = parse_time(remind_time)
+                scheduled_time = today.replace(
+                    hour=hour, minute=minute, second=0, microsecond=0
+                )
+
+                # 获取执行记录
+                log = log_map.get((config.id, task_type))
+
+                # 确定状态
+                if log:
+                    status = log.status
+                    executed_at = (
+                        log.executed_at.isoformat() if log.executed_at else None
+                    )
+                elif scheduled_time < now:
+                    status = "expired"  # 已过期未执行
+                    executed_at = None
+                else:
+                    status = "pending"  # 待执行
+                    executed_at = None
+
+                result.append(
+                    {
+                        "project_name": config.project_name,
+                        "task_type": task_type,
+                        "scheduled_time": scheduled_time.isoformat(),
+                        "status": status,
+                        "executed_at": executed_at,
+                    }
+                )
+
+        # 按计划执行时间排序
+        result.sort(key=lambda x: x["scheduled_time"])
+        return result
+    finally:
+        session.close()
+
+
+def run_story_task(remind_config: ProjectRemindConfig, scheduled_time: datetime):
     """执行故事提醒任务"""
-    from task.remind_week_story import remind_week_story  # type: ignore
+    from task import remind_week_story as module
 
     dateattr = DateAttr()
     if not dateattr.is_workday:
         logger.info(f"[{remind_config.project_name}] 非工作日，跳过故事提醒")
         return
     logger.info(f"[{remind_config.project_name}] 执行本周待完成故事提醒...")
-    module_run(remind_week_story, remind_config)
+    try:
+        module_run(module, remind_config)
+        record_execution(
+            remind_config.project_config_id, TASK_TYPE_STORY, scheduled_time, "success"
+        )
+    except Exception as e:
+        logger.error(f"[{remind_config.project_name}] 故事提醒执行失败: {e}")
+        record_execution(
+            remind_config.project_config_id,
+            TASK_TYPE_STORY,
+            scheduled_time,
+            "failed",
+            str(e),
+        )
 
 
-def run_task_reminder(remind_config: ProjectRemindConfig):
+def run_task_reminder(remind_config: ProjectRemindConfig, scheduled_time: datetime):
     """执行子任务到期提醒"""
-    from task.remind_expire_task import remind_expire_task  # type: ignore
+    from task import remind_expire_task as module
 
     dateattr = DateAttr()
     if not dateattr.is_workday:
         logger.info(f"[{remind_config.project_name}] 非工作日，跳过任务提醒")
         return
     logger.info(f"[{remind_config.project_name}] 执行子任务到期提醒...")
-    module_run(remind_expire_task, remind_config)
+    try:
+        module_run(module, remind_config)
+        record_execution(
+            remind_config.project_config_id, TASK_TYPE_TASK, scheduled_time, "success"
+        )
+    except Exception as e:
+        logger.error(f"[{remind_config.project_name}] 任务提醒执行失败: {e}")
+        record_execution(
+            remind_config.project_config_id,
+            TASK_TYPE_TASK,
+            scheduled_time,
+            "failed",
+            str(e),
+        )
 
 
-def run_sonar_scan_reminder(remind_config: ProjectRemindConfig):
+def run_sonar_scan_reminder(
+    remind_config: ProjectRemindConfig, scheduled_time: datetime
+):
     """执行Sonar扫描提醒"""
     import task.remind_sonar_scan as sonar_module
 
@@ -197,7 +352,20 @@ def run_sonar_scan_reminder(remind_config: ProjectRemindConfig):
         logger.info(f"[{remind_config.project_name}] 非工作日，跳过Sonar扫描提醒")
         return
     logger.info(f"[{remind_config.project_name}] 执行Sonar扫描提醒...")
-    module_run(sonar_module, remind_config)
+    try:
+        module_run(sonar_module, remind_config)
+        record_execution(
+            remind_config.project_config_id, TASK_TYPE_SONAR, scheduled_time, "success"
+        )
+    except Exception as e:
+        logger.error(f"[{remind_config.project_name}] Sonar扫描提醒执行失败: {e}")
+        record_execution(
+            remind_config.project_config_id,
+            TASK_TYPE_SONAR,
+            scheduled_time,
+            "failed",
+            str(e),
+        )
 
 
 def run_report_data():
@@ -207,6 +375,24 @@ def run_report_data():
     dateattr = DateAttr()
     if not dateattr.is_workday:
         logger.info("非工作日，跳过报表数据生成")
+        return
+
+    now = datetime.now()
+
+    # 获取报表生成配置的时间
+    project_configs = get_project_configs()
+    report_time = None
+    for config in project_configs:
+        if config.need_report_data and config.report_data_time:
+            report_time = config.report_data_time
+            break
+
+    if not report_time:
+        logger.info("未配置报表生成时间，跳过")
+        return
+
+    if not check_time_match(report_time, now):
+        logger.info(f"当前时间不匹配报表生成时间({report_time})，跳过")
         return
 
     logger.info("开始执行报表数据生成...")
@@ -240,7 +426,12 @@ def run_all_story_tasks():
                 continue
             # 检查时间是否匹配
             if check_time_match(config.story_remind_time, now):
-                run_story_task(config)
+                # 计算计划执行时间
+                hour, minute = parse_time(config.story_remind_time)
+                scheduled_time = now.replace(
+                    hour=hour, minute=minute, second=0, microsecond=0
+                )
+                run_story_task(config, scheduled_time)
             else:
                 logger.info(
                     f"[{config.project_name}] 当前时间不匹配故事提醒时间({config.story_remind_time})，跳过"
@@ -269,7 +460,12 @@ def run_all_task_reminders():
                 continue
             # 检查时间是否匹配
             if check_time_match(config.task_remind_time, now):
-                run_task_reminder(config)
+                # 计算计划执行时间
+                hour, minute = parse_time(config.task_remind_time)
+                scheduled_time = now.replace(
+                    hour=hour, minute=minute, second=0, microsecond=0
+                )
+                run_task_reminder(config, scheduled_time)
             else:
                 logger.info(
                     f"[{config.project_name}] 当前时间不匹配任务提醒时间({config.task_remind_time})，跳过"
@@ -298,7 +494,12 @@ def run_all_sonar_scan_reminders():
                 continue
             # 检查时间是否匹配
             if check_time_match(config.sonar_remind_time, now):
-                run_sonar_scan_reminder(config)
+                # 计算计划执行时间
+                hour, minute = parse_time(config.sonar_remind_time)
+                scheduled_time = now.replace(
+                    hour=hour, minute=minute, second=0, microsecond=0
+                )
+                run_sonar_scan_reminder(config, scheduled_time)
             else:
                 logger.info(
                     f"[{config.project_name}] 当前时间不匹配Sonar提醒时间({config.sonar_remind_time})，跳过"
@@ -317,8 +518,8 @@ class TaskScheduler:
 
     def _setup_jobs(self):
         """设置定时任务，每分钟触发检查"""
-        # 所有任务每天都触发，由 run_all_xxx 函数检查 is_workday 和项目时间配置
-        trigger = CronTrigger(day_of_week="*")
+        # 每10分钟触发一次，由 run_all_xxx 函数检查 is_workday 和项目时间配置是否匹配
+        trigger = CronTrigger(minute="*/10")
 
         # 故事提醒
         self.scheduler.add_job(

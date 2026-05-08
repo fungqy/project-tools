@@ -2,9 +2,9 @@
 
 from fastapi import APIRouter, HTTPException
 
-from api.scheduler import get_scheduler
+from api.scheduler import get_scheduler, get_today_tasks_status
 
-router = APIRouter(prefix="/scheduler", tags=["调度器"])
+router = APIRouter(prefix="/api/scheduler", tags=["调度器"])
 
 
 @router.get("/jobs", response_model=list)
@@ -12,6 +12,12 @@ def get_jobs():
     """获取调度器当前所有任务状态"""
     scheduler = get_scheduler()
     return scheduler.get_jobs()
+
+
+@router.get("/today-tasks")
+def get_today_tasks():
+    """获取今日任务状态"""
+    return get_today_tasks_status()
 
 
 @router.post("/jobs/{job_id}/run")

@@ -210,6 +210,7 @@ class BaseProject:
 class ProjectRemindConfig(BaseProject):
     """项目提醒配置信息"""
 
+    project_config_id: int = 0  # 数据库项目配置ID
     gitlab_group_key: str = ""  # gitlab 项目的group key
     need_story_remind: bool = False  # 是否需要故事提醒
     need_task_remind: bool = False  # 是否需要子任务到期提醒

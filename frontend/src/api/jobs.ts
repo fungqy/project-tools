@@ -1,31 +1,43 @@
-import api from './index'
+import api from "./index";
 
 export interface JobInfo {
-  id: string
-  name: string
-  next_run_time: string | null
-  trigger: string
+    id: string;
+    name: string;
+    next_run_time: string | null;
+    trigger: string;
 }
 
 export interface JobsResponse {
-  total: number
-  jobs: JobInfo[]
+    total: number;
+    jobs: JobInfo[];
+}
+
+export interface TodayTask {
+    project_name: string;
+    task_type: string;
+    scheduled_time: string;
+    status: "pending" | "success" | "failed" | "expired";
+    executed_at: string | null;
 }
 
 export const jobApi = {
-  getJobs() {
-    return api.get<JobsResponse>('/jobs')
-  },
+    getJobs() {
+        return api.get<JobsResponse>("/jobs");
+    },
 
-  triggerJob(jobId: string) {
-    return api.post(`/jobs/${jobId}/trigger`)
-  },
+    getTodayTasks() {
+        return api.get<TodayTask[]>("/scheduler/today-tasks");
+    },
 
-  triggerStoryReminder() {
-    return api.post('/jobs/story-reminder/trigger')
-  },
+    triggerJob(jobId: string) {
+        return api.post(`/jobs/${jobId}/trigger`);
+    },
 
-  triggerTaskReminder() {
-    return api.post('/jobs/task-reminder/trigger')
-  },
-}
+    triggerStoryReminder() {
+        return api.post("/jobs/story-reminder/trigger");
+    },
+
+    triggerTaskReminder() {
+        return api.post("/jobs/task-reminder/trigger");
+    },
+};

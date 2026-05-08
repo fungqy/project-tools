@@ -1,211 +1,509 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { jobApi } from '@/api/jobs'
+import { ref, onMounted, computed } from 'vue'
 import { projectApi } from '@/api/projects'
+import { jobApi, type TodayTask } from '@/api/jobs'
 import { useAuthStore } from '@/stores/auth'
-import { ElCard, ElEmpty } from 'element-plus'
 
 const authStore = useAuthStore()
-const jobs = ref<any[]>([])
 const projects = ref<any[]>([])
+const todayTasks = ref<TodayTask[]>([])
 const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const jobCurrentPage = ref(1)
+const jobPageSize = ref(10)
 
 onMounted(async () => {
   loading.value = true
   try {
-    const [jobsRes, projectsRes] = await Promise.all([
-      jobApi.getJobs(),
+    const [projectsRes, tasksRes] = await Promise.all([
       projectApi.getList(),
+      jobApi.getTodayTasks(),
     ])
-    jobs.value = jobsRes.jobs
     projects.value = projectsRes
+    todayTasks.value = tasksRes
   } finally {
     loading.value = false
   }
 })
 
-async function handleTriggerJob(jobId: string) {
-  await jobApi.triggerJob(jobId)
+const taskTypeMap: Record<string, string> = {
+  story_reminder: '进度提醒',
+  task_reminder: '任务提醒',
+  sonar_reminder: 'Sonar扫描',
+  report_data: '报表数据',
 }
+
+const statusMap: Record<string, { text: string; cls: string }> = {
+  pending: { text: '待执行', cls: 'status-pending' },
+  success: { text: '成功', cls: 'status-success' },
+  failed:  { text: '失败',  cls: 'status-failed'  },
+  expired: { text: '已过期', cls: 'status-expired' },
+}
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+const paginatedProjects = computed(() => {
+  const filtered = projects.value.filter(p =>
+    p.need_story_remind || p.need_task_remind || p.need_sonar_scan_remind || p.need_report_data
+  )
+  const start = (currentPage.value - 1) * pageSize.value
+  return filtered.slice(start, start + pageSize.value)
+})
+
+const paginatedJobs = computed(() => {
+  const start = (jobCurrentPage.value - 1) * jobPageSize.value
+  return todayTasks.value.slice(start, start + jobPageSize.value)
+})
+
+const totalPages = computed(() => {
+  const filtered = projects.value.filter(p =>
+    p.need_story_remind || p.need_task_remind || p.need_sonar_scan_remind || p.need_report_data
+  )
+  return Math.ceil(filtered.length / pageSize.value)
+})
+
+const jobTotalPages = computed(() => Math.ceil(todayTasks.value.length / jobPageSize.value))
+
+const enabledProjects = computed(() =>
+  projects.value.filter(p => p.need_story_remind || p.need_task_remind || p.need_sonar_scan_remind || p.need_report_data).length
+)
+const activeAlerts = computed(() =>
+  projects.value.filter(p => p.need_story_remind).length +
+  projects.value.filter(p => p.need_task_remind).length +
+  projects.value.filter(p => p.need_sonar_scan_remind).length
+)
 </script>
 
 <template>
   <div class="dashboard">
-    <div class="welcome-card">
-      <div class="welcome-content">
-        <h2>欢迎回来，{{ authStore.user?.username }}</h2>
-        <p>今天是个美好的一天，让我们开始工作吧！</p>
+    <!-- Greeting -->
+    <section class="greeting page-enter">
+      <div class="greeting-inner">
+        <div class="greeting-text">
+          <h1>早安，{{ authStore.user?.username }}</h1>
+          <p>今天共有 <strong>{{ todayTasks.length }}</strong> 个任务待执行</p>
+        </div>
+        <div class="greeting-decoration">
+          <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+            <circle cx="60" cy="60" r="55" fill="#2D5BFF" opacity="0.06"/>
+            <circle cx="60" cy="60" r="38" fill="#2D5BFF" opacity="0.08"/>
+            <circle cx="60" cy="60" r="22" fill="#2D5BFF" opacity="0.10"/>
+          </svg>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <el-row :gutter="20" class="stats-row">
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-icon projects">
-            <el-icon :size="32"><FolderOpened /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ projects.length }}</span>
-            <span class="stat-label">项目总数</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-icon active">
-            <el-icon :size="32"><Bell /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ projects.filter(p => p.need_story_remind).length }}</span>
-            <span class="stat-label">已启用提醒</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-icon jobs">
-            <el-icon :size="32"><Timer /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ jobs.length }}</span>
-            <span class="stat-label">定时任务</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-icon sonar">
-            <el-icon :size="32"><Monitor /></el-icon>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">{{ projects.filter(p => p.need_sonar_scan_remind).length }}</span>
-            <span class="stat-label">Sonar扫描</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- Stats -->
+    <section class="stats-row page-enter" style="animation-delay: 0.06s">
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M3 7a2 2 0 0 1 2-2h3l2 3h8a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" stroke="#2D5BFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-value">{{ projects.length }}</span>
+          <span class="stat-label">项目总数</span>
+        </div>
+        <div class="stat-accent"></div>
+      </div>
 
-    <el-row :gutter="20">
-      <el-col :span="12">
-        <el-card class="jobs-card">
-          <template #header>
-            <div class="card-header">
-              <span>定时任务</span>
-            </div>
-          </template>
-          <el-table :data="jobs" v-loading="loading">
-            <el-table-column prop="name" label="任务名称" />
-            <el-table-column prop="next_run_time" label="下次执行时间">
-              <template #default="{ row }">
-                {{ row.next_run_time ? new Date(row.next_run_time).toLocaleString() : '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button type="primary" link @click="handleTriggerJob(row.id)">
-                  立即执行
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M11 3a7 7 0 1 0 0 14A7 7 0 0 0 11 3z" stroke="#22C55E" stroke-width="1.5"/>
+            <path d="M11 8v4l3 2" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-value">{{ enabledProjects }}</span>
+          <span class="stat-label">已启用提醒</span>
+        </div>
+        <div class="stat-accent stat-accent--green"></div>
+      </div>
 
-      <el-col :span="12">
-        <el-card class="projects-card">
-          <template #header>
-            <div class="card-header">
-              <span>我的项目</span>
-            </div>
-          </template>
-          <el-table :data="projects.slice(0, 5)" v-loading="loading">
-            <el-table-column prop="project_name" label="项目名称" />
-            <el-table-column prop="board_name" label="JIRA面板" />
-            <el-table-column label="进度提醒" width="100">
-              <template #default="{ row }">
-                <el-tag :type="row.need_story_remind ? 'success' : 'info'" size="small">
-                  {{ row.need_story_remind ? '已启用' : '未启用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
-    </el-row>
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <path d="M4 12h14M4 6h10M4 18h6" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-value">{{ activeAlerts }}</span>
+          <span class="stat-label">活跃提醒项</span>
+        </div>
+        <div class="stat-accent stat-accent--amber"></div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="#9CA3AF" stroke-width="1.5"/>
+            <path d="M11 7v4M11 14h.01" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="stat-body">
+          <span class="stat-value">{{ todayTasks.length }}</span>
+          <span class="stat-label">今日任务</span>
+        </div>
+        <div class="stat-accent stat-accent--gray"></div>
+      </div>
+    </section>
+
+    <!-- Tables -->
+    <section class="tables-row page-enter" style="animation-delay: 0.12s">
+      <!-- Today's Tasks -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>今日任务</h3>
+            <p>共 {{ todayTasks.length }} 个任务</p>
+          </div>
+          <div class="header-dot"></div>
+        </div>
+        <el-table :data="paginatedJobs" v-loading="loading" class="minimal-table">
+          <el-table-column prop="project_name" label="项目名称" min-width="140" />
+          <el-table-column prop="task_type" label="类型" width="95">
+            <template #default="{ row }">
+              <span class="type-badge">{{ taskTypeMap[row.task_type] || row.task_type }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="scheduled_time" label="计划时间" width="115" align="center">
+            <template #default="{ row }">
+              <span class="time-text">{{ formatDateTime(row.scheduled_time) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="80" align="center">
+            <template #default="{ row }">
+              <span :class="['status-badge', statusMap[row.status]?.cls]">
+                {{ statusMap[row.status]?.text || row.status }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="table-footer" v-if="jobTotalPages > 1">
+          <el-pagination
+            v-model:current-page="jobCurrentPage"
+            :page-size="jobPageSize"
+            :total="todayTasks.length"
+            layout="prev, pager, next"
+            small
+          />
+        </div>
+      </div>
+
+      <!-- Project Reminders -->
+      <div class="table-card">
+        <div class="table-card-header">
+          <div>
+            <h3>项目提醒配置</h3>
+            <p>{{ enabledProjects }} 个项目已配置</p>
+          </div>
+          <div class="header-dot header-dot--green"></div>
+        </div>
+        <el-table :data="paginatedProjects" v-loading="loading" class="minimal-table">
+          <el-table-column prop="project_name" label="项目名称" min-width="140" />
+          <el-table-column label="进度" width="72" align="center">
+            <template #default="{ row }">
+              <span v-if="row.need_story_remind" class="reminder-active">
+                {{ row.story_remind_time }}
+                <span class="reminder-time">提醒</span>
+              </span>
+              <span v-else class="reminder-off">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="任务" width="72" align="center">
+            <template #default="{ row }">
+              <span v-if="row.need_task_remind" class="reminder-active">
+                {{ row.task_remind_time }}
+                <span class="reminder-time">提醒</span>
+              </span>
+              <span v-else class="reminder-off">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="Sonar" width="72" align="center">
+            <template #default="{ row }">
+              <span v-if="row.need_sonar_scan_remind" class="reminder-active">
+                {{ row.sonar_remind_time }}
+                <span class="reminder-time">提醒</span>
+              </span>
+              <span v-else class="reminder-off">—</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="报表" width="72" align="center">
+            <template #default="{ row }">
+              <span v-if="row.need_report_data" class="reminder-active">
+                {{ row.report_data_time }}
+                <span class="reminder-time">生成</span>
+              </span>
+              <span v-else class="reminder-off">—</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="table-footer" v-if="totalPages > 1">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="projects.filter(p => p.need_story_remind || p.need_task_remind || p.need_sonar_scan_remind || p.need_report_data).length"
+            layout="prev, pager, next"
+            small
+          />
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <style scoped lang="scss">
 .dashboard {
-  .welcome-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 16px;
-    padding: 30px;
-    margin-bottom: 20px;
-    color: #fff;
+  max-width: 1280px;
+}
 
-    .welcome-content {
-      h2 {
-        font-size: 24px;
-        margin-bottom: 8px;
-      }
+// ── Greeting ───────────────────────────────────────────────────
+.greeting {
+  margin-bottom: 24px;
 
-      p {
-        opacity: 0.8;
-      }
-    }
+  &-inner {
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    padding: 32px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
   }
 
-  .stats-row {
-    margin-bottom: 20px;
-  }
-
-  .stat-card {
-    :deep(.el-card__body) {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      padding: 20px;
+  &-text {
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--ink-primary);
+      margin-bottom: 8px;
+      letter-spacing: -0.03em;
     }
 
-    .stat-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
+    p {
+      font-size: 14px;
+      color: var(--ink-secondary);
 
-      &.projects { background: linear-gradient(135deg, #409eff, #53a8ff); }
-      &.active { background: linear-gradient(135deg, #67c23a, #85ce61); }
-      &.jobs { background: linear-gradient(135deg, #e6a23c, #ebb563); }
-      &.sonar { background: linear-gradient(135deg, #909399, #a6a9ad); }
-    }
-
-    .stat-info {
-      display: flex;
-      flex-direction: column;
-
-      .stat-value {
-        font-size: 28px;
+      strong {
+        color: var(--accent);
         font-weight: 600;
-        color: #333;
-      }
-
-      .stat-label {
-        font-size: 14px;
-        color: #999;
       }
     }
   }
 
-  .jobs-card,
-  .projects-card {
-    .card-header {
+  &-decoration {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.6;
+  }
+}
+
+// ── Stats Row ──────────────────────────────────────────────────
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--shadow-xs);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+}
+
+.stat-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value {
+  font-family: 'Sora', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--ink-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stat-accent {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+  border-radius: 0 0 0 3px;
+
+  &--green { background: #22C55E; }
+  &--amber { background: #F59E0B; }
+  &--gray  { background: #9CA3AF; }
+}
+
+// ── Tables Row ─────────────────────────────────────────────────
+.tables-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.table-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-xs);
+
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+
+    h3 {
+      font-size: 15px;
       font-weight: 600;
-      font-size: 16px;
+      color: var(--ink-primary);
+      margin-bottom: 4px;
+    }
+
+    p {
+      font-size: 12px;
+      color: var(--ink-tertiary);
     }
   }
+}
+
+.header-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 6px;
+
+  &--green { background: #22C55E; }
+}
+
+// ── Minimal Table ─────────────────────────────────────────────
+.minimal-table {
+  :deep(.el-table__header th) {
+    background: var(--bg-muted);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 12px;
+  }
+
+  :deep(.el-table__row td) {
+    padding: 11px 12px;
+    font-size: 13px;
+    color: var(--ink-primary);
+  }
+
+  :deep(.el-table__row:hover td) {
+    background: var(--bg-base) !important;
+  }
+}
+
+.type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.time-text {
+  font-size: 12px;
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 500;
+
+  &.status-pending { background: #F3F4F6; color: #6B7280; }
+  &.status-success  { background: #DCFCE7; color: #16A34A; }
+  &.status-failed   { background: #FEE2E2; color: #DC2626; }
+  &.status-expired  { background: #FEF3C7; color: #D97706; }
+}
+
+.reminder-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-time {
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reminder-off {
+  color: var(--ink-tertiary);
+}
+
+.table-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 </style>

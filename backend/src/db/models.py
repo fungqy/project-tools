@@ -246,10 +246,31 @@ class Holiday(Base):
     iscompday = Column(Boolean, default=False)
     weekday = Column(Integer)
 
+    @property
+    def datestr_str(self):
+        """安全获取日期字符串"""
+        # 检查是否是类调用
+        if not isinstance(self, Holiday):
+            return None
+
+        try:
+            datestr_value = self.datestr
+            # 检查是否是 SQLAlchemy Column 对象
+            if hasattr(datestr_value, "__class__") and "Column" in str(
+                datestr_value.__class__
+            ):
+                return None
+
+            if datestr_value is not None and isinstance(datestr_value, datetime):
+                return datestr_value.isoformat()
+        except Exception:
+            pass
+        return None
+
     def to_dict(self):
         return {
             "id": self.id,
-            "datestr": self.datestr.isoformat() if self.datestr else None,
+            "datestr": self.datestr_str,
             "isholiday": self.isholiday,
             "iscompday": self.iscompday,
             "weekday": self.weekday,
@@ -431,4 +452,35 @@ class AvgMetricByProjectDeveloper(Base):
             "updated_at": self.updated_at.isoformat()
             if self.updated_at is not None
             else None,
+        }
+
+
+class TaskExecutionLog(Base):
+    """任务执行记录模型"""
+
+    __tablename__ = "task_execution_logs"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    project_config_id = Column(
+        BigInteger, ForeignKey("project_configs.id", ondelete="CASCADE"), nullable=False
+    )
+    task_type = Column(
+        String(50), nullable=False
+    )  # story_reminder, task_reminder, sonar_reminder, report_data
+    scheduled_time = Column(DateTime, nullable=False)  # 计划执行时间
+    executed_at = Column(DateTime, nullable=False, default=datetime.now)  # 实际执行时间
+    status = Column(String(20), nullable=False)  # success, failed
+    error_message = Column(String(500), default="")  # 错误信息
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "project_config_id": self.project_config_id,
+            "task_type": self.task_type,
+            "scheduled_time": self.scheduled_time.isoformat()
+            if self.scheduled_time
+            else None,
+            "executed_at": self.executed_at.isoformat() if self.executed_at else None,
+            "status": self.status,
+            "error_message": self.error_message,
         }

@@ -233,3 +233,130 @@ CREATE TABLE IF NOT EXISTS holidays (
     weekday INT COMMENT '星期几(1-7)',
     UNIQUE KEY uk_datestr (datestr)
 ) COMMENT '节假日表';
+
+-- 任务执行记录表
+CREATE TABLE IF NOT EXISTS task_execution_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+    project_config_id BIGINT NOT NULL COMMENT '项目配置ID',
+    task_type VARCHAR(50) NOT NULL COMMENT '任务类型(story_reminder/task_reminder/sonar_reminder/report_data)',
+    scheduled_time DATETIME NOT NULL COMMENT '计划执行时间',
+    executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '实际执行时间',
+    status VARCHAR(20) NOT NULL COMMENT '执行状态(success/failed)',
+    error_message VARCHAR(500) DEFAULT '' COMMENT '错误信息',
+    FOREIGN KEY (project_config_id) REFERENCES project_configs(id) ON DELETE CASCADE
+) COMMENT '任务执行记录表';
+
+
+
+-- ==================================
+-- RDM
+-- ==================================
+-- rdmdb.rdm_issue definition
+
+CREATE TABLE `rdm_issue` (
+  `issueId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issueId',
+  `sprint_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'sprintId',
+  `sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'sprint名称',
+  `issueKey` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issueKey',
+  `issueType` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue类型',
+  `issueName` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue名称',
+  `reporter` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '报告人',
+  `assignee` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '经办人',
+  `created` datetime DEFAULT NULL COMMENT '创建时间',
+  `updated` datetime DEFAULT NULL COMMENT '更新时间',
+  `description` mediumtext COLLATE utf8mb4_unicode_ci COMMENT '描述',
+  `status` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '状态',
+  `resolution` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '解决结果',
+  `priority` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '优先级',
+  `require_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '需求类型',
+  `callback` int DEFAULT NULL COMMENT '打回次数',
+  `developer` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '开发负责人',
+  `tester` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '测试负责人',
+  `duedate` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '到期日',
+  `module` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '模块',
+  `bug_story` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '所属故事',
+  `bug_type` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '故障类型',
+  `bug_flag` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '故障标签',
+  `bug_reason` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '故障原因',
+  `bug_solver` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '故障修复人',
+  `bug_maker` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '故障产生人',
+  `is_unplaned` tinyint DEFAULT NULL COMMENT '是否计划外',
+  `sprint_active_date` datetime DEFAULT NULL COMMENT 'sprint启动时间',
+  `plan_worktime` float DEFAULT NULL COMMENT '计划工时',
+  `actual_worktime` float DEFAULT NULL COMMENT '实际工时',
+  `actual_worktime2` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '镜像提交信息',
+  KEY `idx_issues_sprint_id_name` (`sprint_id`,`sprint_name`),
+  KEY `idx_issues_sprint_id` (`sprint_id`),
+  KEY `idx_issues_id` (`issueId`),
+  KEY `idx_issues_key` (`issueKey`),
+  KEY `idx_issues_id_key` (`issueId`,`issueKey`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='rdm issue数据';
+
+-- rdmdb.rdm_sprint definition
+
+CREATE TABLE `rdm_sprint` (
+  `board_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '看板id',
+  `board_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '看板名称',
+  `project_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '项目id',
+  `project_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '项目名称',
+  `sprint_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint id',
+  `origin_sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '原Sprint名称',
+  `sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint名称',
+  `short_sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '短Sprint名称',
+  `startdate` datetime DEFAULT NULL COMMENT 'Sprint计划开始日期',
+  `enddate` datetime DEFAULT NULL COMMENT 'Sprint计划结束日期',
+  `activatedDate` datetime DEFAULT NULL COMMENT 'Sprint激活日期',
+  `completeDate` datetime DEFAULT NULL COMMENT 'Sprint完成日期',
+  `state` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint状态',
+  `goal` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint目标',
+  KEY `idx_sprint_id_name` (`sprint_id`,`sprint_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='rdm sprint数据';
+
+
+-- rdmdb.bug_flag_class definition
+
+CREATE TABLE `rdm_bug_label_class` (
+  `class_id` int DEFAULT NULL COMMENT 'Bug标签分类ID',
+  `class_name` varchar(50) DEFAULT NULL COMMENT 'Bug标签分类名称',
+  `label` varchar(512) DEFAULT NULL COMMENT 'Bug标签'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Bug标签分类';
+
+
+-- rdmdb.rdm_bug_changelog definition
+
+CREATE TABLE `rdm_bug_changelog` (
+  `log_id` varchar(50) DEFAULT NULL COMMENT '变更日志id',
+  `bug_id` varchar(50) DEFAULT NULL COMMENT '故障id',
+  `bug_key` varchar(50) DEFAULT NULL COMMENT '故障key',
+  `bug_name` varchar(512) DEFAULT NULL COMMENT '故障名称',
+  `bug_solver` varchar(100) DEFAULT NULL COMMENT '故障归属人',
+  `author` varchar(100) DEFAULT NULL COMMENT '变更人',
+  `change_time` datetime DEFAULT NULL COMMENT '变更时间',
+  `change_type` varchar(50) DEFAULT NULL COMMENT '变更类型',
+  `change_detail` varchar(512) DEFAULT NULL COMMENT '变更详情',
+  `project_id` varchar(50) DEFAULT NULL COMMENT '项目id',
+  `project_name` varchar(512) DEFAULT NULL COMMENT '项目名称',
+  `sprint_id` varchar(50) DEFAULT NULL COMMENT 'SprintID',
+  `sprint_name` varchar(512) DEFAULT NULL COMMENT '看板id',
+  KEY `idx_project_sprint_bug` (`project_id`,`sprint_id`,`bug_id`),
+  KEY `idx_project_bug` (`project_id`,`bug_id`),
+  KEY `idx_sprint_bug` (`sprint_id`,`bug_id`),
+  KEY `idx_sprint` (`sprint_id`),
+  KEY `idx_bug` (`bug_id`),
+  KEY `idx_key` (`bug_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='bug变更记录';
+
+
+-- rdmdb.rdm_storie_changelog definition
+
+CREATE TABLE `rdm_storie_changelog` (
+  `log_id` varchar(50) DEFAULT NULL COMMENT '日志id',
+  `story_id` varchar(50) DEFAULT NULL COMMENT '故事id',
+  `story_key` varchar(50) DEFAULT NULL COMMENT '故事key',
+  `story_complete_time` datetime DEFAULT NULL COMMENT '故事完成时间',
+  `author` varchar(100) DEFAULT NULL COMMENT '变更人',
+  `change_time` datetime DEFAULT NULL COMMENT '变更时间',
+  `change_detail` varchar(512) DEFAULT NULL COMMENT '变更详情',
+  KEY `idx_story_id` (`story_id`),
+  KEY `idx_story_key` (`story_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='故事变更记录';
