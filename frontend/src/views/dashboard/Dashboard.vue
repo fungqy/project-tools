@@ -168,17 +168,17 @@ const activeAlerts = computed(() =>
         </div>
         <el-table :data="paginatedJobs" v-loading="loading" class="minimal-table">
           <el-table-column prop="project_name" label="项目名称" min-width="140" />
-          <el-table-column prop="task_type" label="类型" width="95">
+          <el-table-column prop="task_type" label="类型" width="110">
             <template #default="{ row }">
               <span class="type-badge">{{ taskTypeMap[row.task_type] || row.task_type }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="scheduled_time" label="计划时间" width="115" align="center">
+          <el-table-column prop="scheduled_time" label="计划时间" width="140" align="center">
             <template #default="{ row }">
               <span class="time-text">{{ formatDateTime(row.scheduled_time) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="80" align="center">
+          <el-table-column prop="status" label="状态" width="90" align="center">
             <template #default="{ row }">
               <span :class="['status-badge', statusMap[row.status]?.cls]">
                 {{ statusMap[row.status]?.text || row.status }}
@@ -208,7 +208,7 @@ const activeAlerts = computed(() =>
         </div>
         <el-table :data="paginatedProjects" v-loading="loading" class="minimal-table">
           <el-table-column prop="project_name" label="项目名称" min-width="140" />
-          <el-table-column label="进度" width="72" align="center">
+          <el-table-column label="进度" width="90" align="center">
             <template #default="{ row }">
               <span v-if="row.need_story_remind" class="reminder-active">
                 {{ row.story_remind_time }}
@@ -217,7 +217,7 @@ const activeAlerts = computed(() =>
               <span v-else class="reminder-off">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="任务" width="72" align="center">
+          <el-table-column label="任务" width="90" align="center">
             <template #default="{ row }">
               <span v-if="row.need_task_remind" class="reminder-active">
                 {{ row.task_remind_time }}
@@ -226,7 +226,7 @@ const activeAlerts = computed(() =>
               <span v-else class="reminder-off">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="Sonar" width="72" align="center">
+          <el-table-column label="Sonar" width="100" align="center">
             <template #default="{ row }">
               <span v-if="row.need_sonar_scan_remind" class="reminder-active">
                 {{ row.sonar_remind_time }}
@@ -235,7 +235,7 @@ const activeAlerts = computed(() =>
               <span v-else class="reminder-off">—</span>
             </template>
           </el-table-column>
-          <el-table-column label="报表" width="72" align="center">
+          <el-table-column label="报表" width="90" align="center">
             <template #default="{ row }">
               <span v-if="row.need_report_data" class="reminder-active">
                 {{ row.report_data_time }}
@@ -261,7 +261,7 @@ const activeAlerts = computed(() =>
 
 <style scoped lang="scss">
 .dashboard {
-  max-width: 1280px;
+  max-width: 100%;
 }
 
 // ── Greeting ───────────────────────────────────────────────────
@@ -271,7 +271,7 @@ const activeAlerts = computed(() =>
   &-inner {
     background: var(--bg-surface);
     border-radius: var(--radius-lg);
-    padding: 32px 36px;
+    padding: 24px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -282,7 +282,7 @@ const activeAlerts = computed(() =>
 
   &-text {
     h1 {
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 700;
       color: var(--ink-primary);
       margin-bottom: 8px;
@@ -290,7 +290,7 @@ const activeAlerts = computed(() =>
     }
 
     p {
-      font-size: 14px;
+      font-size: 15px;
       color: var(--ink-secondary);
 
       strong {
@@ -320,7 +320,7 @@ const activeAlerts = computed(() =>
 .stat-card {
   background: var(--bg-surface);
   border-radius: var(--radius-md);
-  padding: 22px 24px;
+  padding: 18px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -354,7 +354,7 @@ const activeAlerts = computed(() =>
 
 .stat-value {
   font-family: 'Sora', sans-serif;
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--ink-primary);
   line-height: 1;
@@ -393,24 +393,26 @@ const activeAlerts = computed(() =>
 .table-card {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px;
   box-shadow: var(--shadow-xs);
+  min-width: 0;
+  overflow: hidden;
 
   &-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 
     h3 {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 600;
       color: var(--ink-primary);
       margin-bottom: 4px;
     }
 
     p {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--ink-tertiary);
     }
   }
@@ -431,16 +433,17 @@ const activeAlerts = computed(() =>
   :deep(.el-table__header th) {
     background: var(--bg-muted);
     font-weight: 600;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 10px 12px;
+    white-space: nowrap;
   }
 
   :deep(.el-table__row td) {
-    padding: 11px 12px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 14px;
     color: var(--ink-primary);
   }
 
@@ -455,21 +458,24 @@ const activeAlerts = computed(() =>
   border-radius: var(--radius-xs);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .time-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .status-badge {
   display: inline-block;
+  white-space: nowrap;
   padding: 2px 8px;
   border-radius: var(--radius-xs);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 
   &.status-pending { background: #F3F4F6; color: #6B7280; }
@@ -483,14 +489,14 @@ const activeAlerts = computed(() =>
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ink-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .reminder-time {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--accent);
   font-weight: 600;
   text-transform: uppercase;

@@ -45,8 +45,8 @@ class Sprint:
     short_sprint_name: str
     startdate: Optional[str]
     enddate: Optional[str]
-    activatedDate: Optional[str]
-    completeDate: Optional[str]
+    activated_date: Optional[str]
+    complete_date: Optional[str]
     state: str
     goal: Optional[str]
     auth_config: Optional[AuthConfig] = field(default=None)
@@ -54,8 +54,8 @@ class Sprint:
     def __post_init__(self):
         self.startdate = to_beijing_mysql_datetime(self.startdate)
         self.enddate = to_beijing_mysql_datetime(self.enddate)
-        self.activatedDate = to_beijing_mysql_datetime(self.activatedDate)
-        self.completeDate = to_beijing_mysql_datetime(self.completeDate)
+        self.activated_date = to_beijing_mysql_datetime(self.activated_date)
+        self.complete_date = to_beijing_mysql_datetime(self.complete_date)
 
     @property
     def auth(self) -> Optional[AuthConfig]:
@@ -127,9 +127,9 @@ class Sprint:
         issues = self.issues(["故事", "简单故事", "子任务", "故障"])
         return [
             {
-                "issueKey": issue["key"],
-                "issueName": issue["fields"]["summary"],
-                "issuetype": issue["fields"]["issuetype"]["name"],
+                "issue_key": issue["key"],
+                "issue_name": issue["fields"]["summary"],
+                "issue_type": issue["fields"]["issuetype"]["name"],
                 "duedate": issue["fields"]["duedate"],
                 "assignee": (issue["fields"].get("assignee") or {}).get("displayName")
                 or None,
@@ -144,9 +144,9 @@ class Sprint:
         issues = self.issues(["子任务"])
         return [
             {
-                "issueKey": issue["key"],
-                "issueName": issue["fields"]["summary"],
-                "issuetype": issue["fields"]["issuetype"]["name"],
+                "issue_key": issue["key"],
+                "issue_name": issue["fields"]["summary"],
+                "issue_type": issue["fields"]["issuetype"]["name"],
                 "duedate": issue["fields"]["duedate"],
                 "assignee": (issue["fields"].get("assignee") or {}).get("displayName")
                 or None,
@@ -170,7 +170,7 @@ class Sprint:
         ]
 
         report_issues = rdm_report_issues(issues)
-        sprint_active_date = to_beijing_mysql_datetime(self.activatedDate)
+        sprint_active_date = to_beijing_mysql_datetime(self.activated_date)
         for issue in report_issues:
             issue["sprint_id"] = self.sprint_id
             issue["sprint_name"] = self.sprint_name
@@ -303,8 +303,8 @@ class ProjectUtil:
                     "short_sprint_name": short_sprint_name(sprint["name"]),
                     "startdate": sprint.get("startDate", None),
                     "enddate": sprint.get("endDate", None),
-                    "activatedDate": sprint.get("activatedDate", None),
-                    "completeDate": sprint.get("completeDate", None),
+                    "activated_date": sprint.get("activatedDate", None),
+                    "complete_date": sprint.get("completeDate", None),
                     "state": sprint["state"],
                     "goal": sprint.get("goal") or None,
                     "auth_config": self.auth_config,
@@ -481,12 +481,12 @@ def rdm_report_issues(issues):
 
         result.append(
             {
-                "issueId": _issue.get("id"),
+                "issue_id": _issue.get("id"),
                 "sprint_id": None,
                 "sprint_name": None,
-                "issueKey": _issue.get("key"),
-                "issueType": _fields["issuetype"]["name"],
-                "issueName": _fields["summary"],
+                "issue_key": _issue.get("key"),
+                "issue_type": _fields["issuetype"]["name"],
+                "issue_name": _fields["summary"],
                 "reporter": _fields["reporter"]["displayName"],
                 "assignee": (_fields.get("assignee") or {}).get("displayName") or None,
                 "created": _created,

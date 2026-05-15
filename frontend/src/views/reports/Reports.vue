@@ -6,7 +6,7 @@ import * as echarts from 'echarts'
 
 const projects = ref<ProjectOption[]>([])
 const sprints = ref<SprintOption[]>([])
-const metrics = ref<SprintMetrics>({ story_count: 0, bug_count: 0 })
+const metrics = ref<SprintMetrics>({ story_count: 0, bug_count: 0, bug_reopen_count: 0 })
 
 const selectedProject = ref<number | null>(null)
 const selectedSprint = ref<number | null>(null)
@@ -237,6 +237,12 @@ const bugRate = computed(() => {
   return `${rate}%`
 })
 
+const bugReopenRate = computed(() => {
+  if (metrics.value.bug_count === 0) return '0%'
+  const rate = (metrics.value.bug_reopen_count / metrics.value.bug_count * 100).toFixed(1)
+  return `${rate}%`
+})
+
 async function loadProjects() {
   loadingProjects.value = true
   try {
@@ -461,41 +467,57 @@ onMounted(() => {
     <!-- Metrics cards -->
     <div class="metrics-grid page-enter" style="animation-delay: 0.06s">
       <div class="metric-card">
-        <div class="metric-icon story-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
+        <div class="metric-header">
+          <span class="metric-name">故事数</span>
+          <div class="metric-icon story-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
         </div>
-        <div class="metric-info">
-          <span class="metric-value">{{ metrics.story_count }}</span>
-          <span class="metric-label">故事数</span>
-        </div>
+        <span class="metric-value">{{ metrics.story_count }}</span>
       </div>
 
       <div class="metric-card clickable" @click="openBugDetail">
-        <div class="metric-icon bug-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M12 8v4M12 16h.01M9 3L7 5M15 3l2 2M5 9l-2 2M5 15l-2-2M19 15l-2-2M19 9l2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
-          </svg>
+        <div class="metric-header">
+          <span class="metric-name">故障数</span>
+          <div class="metric-icon bug-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v4M12 16h.01M9 3L7 5M15 3l2 2M5 9l-2 2M5 15l-2-2M19 15l-2-2M19 9l2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </div>
         </div>
-        <div class="metric-info">
-          <span class="metric-value">{{ metrics.bug_count }}</span>
-          <span class="metric-label">故障数</span>
-        </div>
+        <span class="metric-value">{{ metrics.bug_count }}</span>
         <div class="click-hint" v-if="metrics.bug_count > 0">点击查看详情</div>
       </div>
 
       <div class="metric-card">
-        <div class="metric-icon rate-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-          </svg>
+        <div class="metric-header">
+          <span class="metric-name">故障重开数</span>
+          <div class="metric-icon reopen-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M1 4v6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </div>
-        <div class="metric-info">
-          <span class="metric-value">{{ bugRate }}</span>
-          <span class="metric-label">缺陷率</span>
+        <div class="metric-value-row">
+          <span class="metric-value">{{ metrics.bug_reopen_count }}</span>
+          <span class="metric-sub" v-if="metrics.bug_count > 0">重开率 {{ bugReopenRate }}</span>
         </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name">缺陷率</span>
+          <div class="metric-icon rate-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ bugRate }}</span>
       </div>
     </div>
 
@@ -627,7 +649,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .reports-page {
-  max-width: 1280px;
+  max-width: 100%;
 }
 
 // ── Page Header ───────────────────────────────────────────────
@@ -650,7 +672,7 @@ onMounted(() => {
 }
 
 .filter-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-secondary);
   text-transform: uppercase;
@@ -672,11 +694,11 @@ onMounted(() => {
 .metric-card {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px 24px;
   box-shadow: var(--shadow-xs);
   display: flex;
-  align-items: center;
-  gap: 20px;
+  flex-direction: column;
+  gap: 12px;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
   position: relative;
 
@@ -690,10 +712,23 @@ onMounted(() => {
   }
 }
 
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.metric-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  letter-spacing: -0.01em;
+}
+
 .metric-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -709,20 +744,31 @@ onMounted(() => {
     color: #DC2626;
   }
 
+  &.reopen-icon {
+    background: #FEF3C7;
+    color: #D97706;
+  }
+
   &.rate-icon {
     background: #FFF7ED;
     color: #EA580C;
   }
 }
 
-.metric-info {
+.metric-value-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.metric-sub {
+  font-size: 13px;
+  color: var(--ink-tertiary);
+  font-weight: 500;
 }
 
 .metric-value {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
@@ -730,15 +776,10 @@ onMounted(() => {
   line-height: 1;
 }
 
-.metric-label {
-  font-size: 13px;
-  color: var(--ink-tertiary);
-  font-weight: 500;
-}
-
 .click-hint {
   position: absolute;
   right: 24px;
+  bottom: 20px;
   font-size: 12px;
   color: var(--ink-tertiary);
   opacity: 0;
@@ -763,7 +804,7 @@ onMounted(() => {
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--ink-primary);
   margin: 0 0 12px;
@@ -797,7 +838,7 @@ onMounted(() => {
 }
 
 .chart-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink-primary);
   margin: 0 0 12px;

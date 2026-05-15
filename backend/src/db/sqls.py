@@ -84,18 +84,18 @@ from
 left join
 (
 	select
-		issueId,
-        issueKey,
-        issueName as story_name,
+		issue_id,
+        issue_key,
+        issue_name as story_name,
         sprint_id,
         sprint_name,
-        ROW_NUMBER() OVER(partition by issueId, issueKey order by sprint_id desc) rn
+        ROW_NUMBER() OVER(partition by issue_id, issue_key order by sprint_id desc) rn
     from rdmdb.rdm_issue
 )  t2
 on
-	t1.story_id = t2.issueId
+	t1.story_id = t2.issue_id
 and
-	t1.story_key = t2.issueKey
+	t1.story_key = t2.issue_key
 and
 	t2.rn = 1
 left JOIN

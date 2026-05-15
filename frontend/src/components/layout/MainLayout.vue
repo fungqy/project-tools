@@ -21,9 +21,9 @@ const pageTitle = computed(() => route.meta.title as string || '工作台')
 
 const menuItems = [
   { path: '/dashboard', title: '工作台', icon: Odometer },
-  { path: '/projects', title: '项目管理', icon: FolderOpened },
+  { path: '/projects', title: '项目配置', icon: FolderOpened },
   { path: '/jobs', title: '任务调度', icon: Timer },
-  { path: '/sonar', title: 'Sonar扫描', icon: Monitor },
+  { path: '/sonar', title: 'SONAR检查', icon: Monitor },
   { path: '/reports', title: '质量报表', icon: DataAnalysis },
   { path: '/screen', title: '数据大屏', icon: FullScreen },
 ]
@@ -184,7 +184,7 @@ function toggleCollapse() {
 
 .logo-text {
   font-family: 'Sora', sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #fff;
   white-space: nowrap;
@@ -235,7 +235,7 @@ function toggleCollapse() {
 }
 
 .nav-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -289,7 +289,7 @@ function toggleCollapse() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
+  padding: 0 24px;
   border-bottom: 1px solid #EDECEA;
   flex-shrink: 0;
 
@@ -307,7 +307,7 @@ function toggleCollapse() {
 
 .page-breadcrumb {
   font-family: 'Sora', sans-serif;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--ink-primary);
 }
@@ -316,7 +316,7 @@ function toggleCollapse() {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 14px 6px 6px;
+  padding: 5px 12px 5px 5px;
   border-radius: 10px;
   border: 1px solid #EDECEA;
   background: transparent;
@@ -345,7 +345,7 @@ function toggleCollapse() {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-primary);
 }
@@ -353,7 +353,7 @@ function toggleCollapse() {
 // ── Main Content ──────────────────────────────────────────────
 .main-content {
   background: var(--bg-base);
-  padding: 16px;
+  padding: 12px;
   overflow-y: auto;
   flex: 1;
 }

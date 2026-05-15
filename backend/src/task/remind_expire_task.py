@@ -56,7 +56,7 @@ def gene_spirnt_message(active_sprint) -> Optional[str]:
     # 今天未完成的任务
     today_unfinished_tasks = [
         {
-            "name": task["issueName"].replace(" ", ""),
+            "name": task["issue_name"].replace(" ", ""),
             "assignee": task["assignee"],
             "duedate": task["duedate"][5:],  # 日期不带年份
             "expired": "已过期"

@@ -138,7 +138,7 @@ async function handleDelete(row: ProjectConfig) {
             <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
-        <el-table-column label="Sonar 扫描" width="120" align="center">
+        <el-table-column label="SONAR检查" width="120" align="center">
           <template #default="{ row }">
             <span v-if="row.need_sonar_scan_remind" class="reminder-on">
               {{ row.sonar_remind_time }}
@@ -203,7 +203,7 @@ async function handleDelete(row: ProjectConfig) {
 
         <!-- Sonar Section -->
         <div class="form-section">
-          <div class="section-title">Sonar 配置</div>
+          <div class="section-title">SONAR 配置</div>
           <div class="form-grid">
             <el-form-item label="项目 Key 前缀">
               <el-input v-model="formData.sonar_key_prefix" />
@@ -262,7 +262,7 @@ async function handleDelete(row: ProjectConfig) {
 
 <style scoped lang="scss">
 .projects-page {
-  max-width: 1280px;
+  max-width: 100%;
 }
 
 // ── Page Header ──────────────────────────────────────────────
@@ -299,7 +299,7 @@ async function handleDelete(row: ProjectConfig) {
 .projects-card {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px;
   box-shadow: var(--shadow-xs);
 }
 
@@ -307,16 +307,16 @@ async function handleDelete(row: ProjectConfig) {
   :deep(.el-table__header th) {
     background: var(--bg-muted);
     font-weight: 600;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 11px 12px;
+    padding: 10px 12px;
   }
 
   :deep(.el-table__row td) {
-    padding: 12px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 14px;
     color: var(--ink-primary);
   }
 
@@ -326,14 +326,14 @@ async function handleDelete(row: ProjectConfig) {
 }
 
 .reminder-on {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .reminder-off {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-tertiary);
 }
 
@@ -345,18 +345,18 @@ async function handleDelete(row: ProjectConfig) {
 }
 
 .form-section {
-  margin-bottom: 16px;
-  padding: 16px;
+  margin-bottom: 14px;
+  padding: 14px;
   background: var(--bg-muted);
   border-radius: var(--radius-md);
 
   .section-title {
     font-family: 'Sora', sans-serif;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--ink-primary);
-    margin-bottom: 14px;
-    padding-bottom: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
     border-bottom: 1px solid #D1D5DB;
   }
 }
@@ -372,7 +372,7 @@ async function handleDelete(row: ProjectConfig) {
     :deep(.el-form-item__label) {
       width: 108px;
       font-weight: 500;
-      font-size: 13px;
+      font-size: 14px;
     }
   }
 
@@ -391,11 +391,11 @@ async function handleDelete(row: ProjectConfig) {
 .reminder-card {
   background: var(--bg-surface);
   border-radius: var(--radius-sm);
-  padding: 14px;
+  padding: 12px;
   border: 1px solid #E5E7EB;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 
   &-header {
     display: flex;
@@ -403,7 +403,7 @@ async function handleDelete(row: ProjectConfig) {
     gap: 10px;
 
     span {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--ink-primary);
     }

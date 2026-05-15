@@ -192,12 +192,12 @@ CREATE TABLE IF NOT EXISTS project_task_logs (
 -- rdmdb.rdm_issue definition
 
 CREATE TABLE `rdm_issue` (
-  `issueId` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issueId',
-  `sprint_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'sprintId',
+  `issue_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue_id',
+  `sprint_id` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'sprint_id',
   `sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'sprint名称',
-  `issueKey` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issueKey',
-  `issueType` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue类型',
-  `issueName` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue名称',
+  `issue_key` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue_key',
+  `issue_type` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue类型',
+  `issue_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'issue名称',
   `reporter` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '报告人',
   `assignee` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '经办人',
   `created` datetime DEFAULT NULL COMMENT '创建时间',
@@ -225,9 +225,9 @@ CREATE TABLE `rdm_issue` (
   `actual_worktime2` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '镜像提交信息',
   KEY `idx_issues_sprint_id_name` (`sprint_id`,`sprint_name`),
   KEY `idx_issues_sprint_id` (`sprint_id`),
-  KEY `idx_issues_id` (`issueId`),
-  KEY `idx_issues_key` (`issueKey`),
-  KEY `idx_issues_id_key` (`issueId`,`issueKey`)
+  KEY `idx_issues_id` (`issue_id`),
+  KEY `idx_issues_key` (`issue_key`),
+  KEY `idx_issues_id_key` (`issue_id`,`issue_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='rdm issue数据';
 
 -- rdmdb.rdm_sprint definition
@@ -243,8 +243,8 @@ CREATE TABLE `rdm_sprint` (
   `short_sprint_name` varchar(512) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '短Sprint名称',
   `startdate` datetime DEFAULT NULL COMMENT 'Sprint计划开始日期',
   `enddate` datetime DEFAULT NULL COMMENT 'Sprint计划结束日期',
-  `activatedDate` datetime DEFAULT NULL COMMENT 'Sprint激活日期',
-  `completeDate` datetime DEFAULT NULL COMMENT 'Sprint完成日期',
+  `activated_date` datetime DEFAULT NULL COMMENT 'Sprint激活日期',
+  `complete_date` datetime DEFAULT NULL COMMENT 'Sprint完成日期',
   `state` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint状态',
   `goal` varchar(1024) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Sprint目标',
   KEY `idx_sprint_id_name` (`sprint_id`,`sprint_name`)

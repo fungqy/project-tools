@@ -37,7 +37,7 @@ function formatDateTime(iso: string | null): string {
 const jobMeta: Record<string, { label: string; desc: string }> = {
   story_reminder:   { label: '进度提醒',    desc: '同步 JIRA 故事状态并推送提醒' },
   task_reminder:   { label: '任务提醒',    desc: '检查未完成任务并发送企业微信' },
-  sonar_reminder:  { label: 'Sonar 扫描',  desc: '执行 GitLab 代码质量扫描' },
+  sonar_reminder:  { label: 'SONAR检查',  desc: '执行 GitLab 代码质量扫描' },
   report_data:     { label: '报表数据',    desc: '汇总生成质量数据报表' },
 }
 </script>
@@ -96,7 +96,7 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
 
 <style scoped lang="scss">
 .jobs-page {
-  max-width: 1280px;
+  max-width: 100%;
 }
 
 // ── Page Header ───────────────────────────────────────────────
@@ -139,12 +139,12 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
 .job-card {
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: 20px;
   box-shadow: var(--shadow-xs);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 
   &:hover {
     box-shadow: var(--shadow-md);
@@ -179,7 +179,7 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
 
 .job-title-group {
   h3 {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--ink-primary);
     margin-bottom: 4px;
@@ -187,7 +187,7 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
   }
 
   p {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--ink-tertiary);
   }
 }
@@ -196,7 +196,7 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  padding: 16px;
+  padding: 14px;
   background: var(--bg-muted);
   border-radius: var(--radius-md);
 }
@@ -208,7 +208,7 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
 }
 
 .meta-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--ink-tertiary);
   text-transform: uppercase;
@@ -216,14 +216,14 @@ const jobMeta: Record<string, { label: string; desc: string }> = {
 }
 
 .meta-value {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--ink-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .trigger-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-secondary);
   font-family: 'SF Mono', 'Fira Code', monospace;
   letter-spacing: 0;

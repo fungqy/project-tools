@@ -93,12 +93,12 @@ def gene_this_week_todo_stories_message(stories, todo_tasks):
 
     todo_stories = [
         {
-            "name": item["issueName"],
-            "assignees": " ".join(assignee_dict[item["issueKey"]]),
-            "max_duedate": max_duedate_dit[item["issueKey"]],
+            "name": item["issue_name"],
+            "assignees": " ".join(assignee_dict[item["issue_key"]]),
+            "max_duedate": max_duedate_dit[item["issue_key"]],
         }
         for item in stories
-        if item["issueKey"] in valid_story_keys
+        if item["issue_key"] in valid_story_keys
     ]
     # 按 max_duedate 排序
     todo_stories.sort(key=lambda x: x["max_duedate"] if x["max_duedate"] else "")
@@ -116,11 +116,11 @@ def gene_spirnt_message(active_sprint) -> Optional[str]:
     # 获取迭代中的所有Issue
     issues = active_sprint.sample_issues
     # 所有故事
-    stories = [issue for issue in issues if issue["issuetype"] in ["故事", "简单故事"]]
+    stories = [issue for issue in issues if issue["issue_type"] in ["故事", "简单故事"]]
     # 所有子任务
-    tasks = [issue for issue in issues if issue["issuetype"] == "子任务"]
+    tasks = [issue for issue in issues if issue["issue_type"] == "子任务"]
     # 所有bug
-    bugs = [issue for issue in issues if issue["issuetype"] == "故障"]
+    bugs = [issue for issue in issues if issue["issue_type"] == "故障"]
     # 本周待完成子任务
     todo_tasks = [
         task

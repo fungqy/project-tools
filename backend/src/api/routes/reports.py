@@ -114,7 +114,7 @@ async def get_sprint_metrics(
         story_query = text("""
             SELECT COUNT(*) FROM rdm_issue
             WHERE sprint_id = :sprint_id
-            AND issueType IN ('故事', '简单故事')
+            AND issue_type IN ('故事', '简单故事')
         """)
         story_result = session.execute(story_query, {"sprint_id": sprint_id})
         story_count = story_result.fetchone()[0] or 0
@@ -123,14 +123,27 @@ async def get_sprint_metrics(
         bug_query = text("""
             SELECT COUNT(*) FROM rdm_issue
             WHERE sprint_id = :sprint_id
-            AND issueType = '故障'
+            AND issue_type = '故障'
         """)
         bug_result = session.execute(bug_query, {"sprint_id": sprint_id})
         bug_count = bug_result.fetchone()[0] or 0
 
+        # 故障重开数：rdm_issue关联rdm_bug_changelog，存在"待测试 -> 处理中"变更记录
+        reopen_query = text("""
+            SELECT COUNT(DISTINCT i.issue_id)
+            FROM rdm_issue i
+            INNER JOIN rdm_bug_changelog c ON i.issue_id = c.bug_id
+            WHERE i.sprint_id = :sprint_id
+            AND i.issue_type = '故障'
+            AND c.change_detail = '待测试 -> 处理中'
+        """)
+        reopen_result = session.execute(reopen_query, {"sprint_id": sprint_id})
+        bug_reopen_count = reopen_result.fetchone()[0] or 0
+
         return {
             "story_count": story_count,
             "bug_count": bug_count,
+            "bug_reopen_count": bug_reopen_count,
         }
     finally:
         session.close()
@@ -151,10 +164,10 @@ async def get_bug_details(
                 COALESCE(bug_maker, reporter, '其他') as developer,
                 priority,
                 bug_reason,
-                issueId
+                issue_id
             FROM rdm_issue
             WHERE sprint_id = :sprint_id
-            AND issueType = '故障'
+            AND issue_type = '故障'
         """)
         result = session.execute(query, {"sprint_id": sprint_id})
         rows = result.fetchall()
@@ -253,15 +266,15 @@ async def get_bug_list(
         # 处理标签：按-分隔取第一个，去空格，与汇总时一致
         query = text("""
             SELECT
-                issueKey,
+                issue_key,
                 COALESCE(bug_maker, reporter, '其他') as developer,
                 priority,
-                issueName,
+                issue_name,
                 bug_reason,
                 'RDM' as source
             FROM rdm_issue
             WHERE sprint_id = :sprint_id
-            AND issueType = '故障'
+            AND issue_type = '故障'
             AND COALESCE(bug_maker, reporter, '其他') = :developer
         """)
 

@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
         path: "/projects",
         name: "Projects",
         component: () => import("@/views/projects/ProjectList.vue"),
-        meta: { title: "项目管理", icon: "FolderOpened" },
+        meta: { title: "项目配置", icon: "FolderOpened" },
     },
     {
         path: "/jobs",

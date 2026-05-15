@@ -7,7 +7,7 @@ from api.auth import decode_access_token
 from db.database import get_session
 from db.models import ProjectConfig, ProjectReminderSettings
 
-router = APIRouter(prefix="/api/projects", tags=["项目管理"])
+router = APIRouter(prefix="/api/projects", tags=["项目配置"])
 
 
 class ProjectReminderSettingsCreate(BaseModel):

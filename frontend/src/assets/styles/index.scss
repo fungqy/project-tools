@@ -12,6 +12,7 @@ body {
   height: 100%;
   overflow: hidden;
   font-family: 'DM Sans', 'Helvetica Neue', Helvetica, sans-serif;
+  font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -106,6 +107,15 @@ h1, h2, h3, h4, h5, h6 {
   --el-table-row-hover-bg-color: #FAFAF8;
 }
 
+.el-table .el-table__header th {
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.el-table .el-table__row td {
+  padding: 10px 12px;
+}
+
 .el-button--primary {
   --el-button-bg-color: var(--accent);
   --el-button-border-color: var(--accent);
@@ -146,6 +156,10 @@ h1, h2, h3, h4, h5, h6 {
 .el-dialog {
   --el-dialog-border-radius: var(--radius-lg);
   font-family: 'DM Sans', sans-serif;
+}
+
+.el-dialog .el-dialog__body {
+  padding: 16px 20px;
 }
 
 // ── Page transition ───────────────────────────────────────────

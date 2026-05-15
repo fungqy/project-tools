@@ -18,6 +18,7 @@ export interface SprintOption {
 export interface SprintMetrics {
   story_count: number
   bug_count: number
+  bug_reopen_count: number
 }
 
 export interface BugDetailResponse {
