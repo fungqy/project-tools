@@ -511,10 +511,12 @@ onMounted(() => {
       width="100%"
       class="bug-detail-dialog"
       fullscreen
+      align-center
       @close="onBugDialogClose"
     >
       <div v-loading="loadingBugDetail" class="bug-detail-content">
         <div class="bug-detail-table" v-if="bugDetail">
+          <h3 class="section-title">故障分布明细</h3>
           <el-table
             :data="bugDetail.developers"
             border
@@ -756,6 +758,19 @@ onMounted(() => {
 }
 
 // ── Bug Detail Dialog ────────────────────────────────────────
+:deep(.bug-detail-dialog .el-dialog__header) {
+  text-align: center;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
 .bug-detail-content {
   display: flex;
   gap: 24px;
