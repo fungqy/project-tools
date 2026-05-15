@@ -1,6 +1,6 @@
 # 生成故事完成时长表数据
 STORIES_COMPLETE_DURATION_SQL = """
-insert into stories_complete_duration
+insert into rdm_story_duration
 select
     t3.project_id,
     t3.project_name,
@@ -9,73 +9,77 @@ select
     t1.story_id,
 	t1.story_key,
 	t2.story_name,
-	t1.story_create_time,
-	t1.story_complete_time,
-	t1.story_complete_duration,
+	t1.create_time,
+	t1.complete_time,
+	t1.duration,
     CONCAT_WS('',
-        CASE WHEN FLOOR((t1.story_complete_duration + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((t1.story_complete_duration + 43200) / 86400), '天')
+        CASE WHEN FLOOR((t1.duration + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((t1.duration + 43200) / 86400), '天')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((t1.story_complete_duration + 1800) % 86400) / 3600), '小时')
+        CASE WHEN FLOOR((t1.duration + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((t1.duration + 1800) % 86400) / 3600), '小时')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration + 43200) / 86400) = 0
-             AND FLOOR((t1.story_complete_duration + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((t1.story_complete_duration + 30) / 3600), '小时')
+        CASE WHEN FLOOR((t1.duration + 43200) / 86400) = 0
+             AND FLOOR((t1.duration + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((t1.duration + 30) / 3600), '小时')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration + 43200) / 86400) = 0
-             AND FLOOR(((t1.story_complete_duration + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((t1.story_complete_duration + 30) % 3600) / 60), '分')
+        CASE WHEN FLOOR((t1.duration + 43200) / 86400) = 0
+             AND FLOOR(((t1.duration + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((t1.duration + 30) % 3600) / 60), '分')
              ELSE '' END
-    ) AS story_complete_duration_str,
-    t1.story_complete_duration_all,
+    ) AS duration_str,
+    t1.duration_all,
     CONCAT_WS('',
-        CASE WHEN FLOOR((t1.story_complete_duration_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((t1.story_complete_duration_all + 43200) / 86400), '天')
+        CASE WHEN FLOOR((t1.duration_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((t1.duration_all + 43200) / 86400), '天')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((t1.story_complete_duration_all + 1800) % 86400) / 3600), '小时')
+        CASE WHEN FLOOR((t1.duration_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((t1.duration_all + 1800) % 86400) / 3600), '小时')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration_all + 43200) / 86400) = 0
-             AND FLOOR((t1.story_complete_duration_all + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((t1.story_complete_duration_all + 30) / 3600), '小时')
+        CASE WHEN FLOOR((t1.duration_all + 43200) / 86400) = 0
+             AND FLOOR((t1.duration_all + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((t1.duration_all + 30) / 3600), '小时')
              ELSE '' END,
-        CASE WHEN FLOOR((t1.story_complete_duration_all + 43200) / 86400) = 0
-             AND FLOOR(((t1.story_complete_duration_all + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((t1.story_complete_duration_all + 30) % 3600) / 60), '分')
+        CASE WHEN FLOOR((t1.duration_all + 43200) / 86400) = 0
+             AND FLOOR(((t1.duration_all + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((t1.duration_all + 30) % 3600) / 60), '分')
              ELSE '' END
-    ) AS story_complete_duration_all_str
+    ) AS duration_all_str
 from
-(   SELECT
-        t.story_id,
-        t.story_key,
-        t.change_time as story_create_time,
-        t.story_complete_time,
-        SUM(CASE
-              WHEN di.isholiday = 1 OR (di.weekday IN (6, 7) AND di.iscompday = 0) THEN 0
-              ELSE TIMESTAMPDIFF(SECOND,
-                     GREATEST(t.change_time, CONCAT(di.datestr, ' 00:00:00')),
-                     LEAST(t.story_complete_time, CONCAT(di.datestr, ' 23:59:59'))
-                   )
-              END
-        ) AS story_complete_duration,
-        SUM(TIMESTAMPDIFF(SECOND,
-              GREATEST(t.change_time, CONCAT(di.datestr, ' 00:00:00')),
-              LEAST(t.story_complete_time, CONCAT(di.datestr, ' 23:59:59'))
-            )
-        ) AS story_complete_duration_all
-    FROM
-    (
-		select * from rdm_storie_changelog where log_id = 1 and story_complete_time is not null
-	) t
-    JOIN
-        holidays di
-    ON
-        di.datestr BETWEEN DATE(t.change_time)
-    AND
-        DATE(t.story_complete_time)
-    GROUP BY
-        t.story_id, t.story_key, t.change_time, t.story_complete_time
+( 
+     SELECT
+     t.story_id,
+     t.story_key,
+     t.change_time as create_time,
+     t.complete_time,
+     SUM(
+          TIMESTAMPDIFF(SECOND,
+               GREATEST(t.change_time, CONCAT(di.datestr, ' 00:00:00')),
+               LEAST(t.complete_time, CONCAT(di.datestr, ' 23:59:59'))
+          )
+     ) AS duration,
+     SUM(
+          TIMESTAMPDIFF(SECOND,
+               GREATEST(t.change_time, CONCAT(di.datestr, ' 00:00:00')),
+               LEAST(t.complete_time, CONCAT(di.datestr, ' 23:59:59'))
+          )
+     ) AS duration_all
+     FROM
+     (
+     SELECT * 
+     FROM rdm_story_changelog 
+     WHERE log_id = 1 
+          AND complete_time IS NOT NULL
+     ) t
+     JOIN
+     sys_workday di
+     ON
+     di.datestr BETWEEN DATE(t.change_time) AND DATE(t.complete_time)
+     GROUP BY
+     t.story_id, 
+     t.story_key, 
+     t.change_time, 
+     t.complete_time
 ) t1
 left join
 (
@@ -102,7 +106,7 @@ on
 
 # 生成故障完成时长表数据
 BUGS_COMPLETE_DURATION_SQL = """
-insert into bugs_complete_duration
+insert into rdm_bug_duration
 WITH
 t_bugs AS (
 	select t.* from
@@ -142,10 +146,6 @@ t_main AS (
           )
 select
     dev.*,
-	test.test_seconds_all,
-    test.test_seconds,
-	finish.finish_seconds_all,
-	finish.finish_seconds,
     CONCAT_WS('',
         CASE WHEN FLOOR((dev.dev_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((dev.dev_seconds_all + 43200) / 86400), '天')
@@ -163,6 +163,24 @@ select
              ELSE '' END
     ) AS dev_time_all_str,
     CONCAT_WS('',
+        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((dev.dev_seconds + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((dev.dev_seconds + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) = 0
+             AND FLOOR((dev.dev_seconds + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((dev.dev_seconds + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) = 0
+             AND FLOOR(((dev.dev_seconds + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((dev.dev_seconds + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS dev_time_str,
+	test.test_seconds_all,
+    test.test_seconds,
+    CONCAT_WS('',
         CASE WHEN FLOOR((test.test_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test.test_seconds_all + 43200) / 86400), '天')
              ELSE '' END,
@@ -179,38 +197,6 @@ select
              ELSE '' END
     ) AS test_time_all_str,
     CONCAT_WS('',
-        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((finish.finish_seconds_all + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((finish.finish_seconds_all + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR((finish.finish_seconds_all + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((finish.finish_seconds_all + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR(((finish.finish_seconds_all + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((finish.finish_seconds_all + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS finish_time_all_str,
-    CONCAT_WS('',
-        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((dev.dev_seconds + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((dev.dev_seconds + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) = 0
-             AND FLOOR((dev.dev_seconds + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((dev.dev_seconds + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev.dev_seconds + 43200) / 86400) = 0
-             AND FLOOR(((dev.dev_seconds + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((dev.dev_seconds + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS dev_time_str,
-    CONCAT_WS('',
         CASE WHEN FLOOR((test.test_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test.test_seconds + 43200) / 86400), '天')
              ELSE '' END,
@@ -226,6 +212,24 @@ select
              THEN CONCAT(FLOOR(((test.test_seconds + 30) % 3600) / 60), '分')
              ELSE '' END
     ) AS test_time_str,
+	finish.finish_seconds_all,
+	finish.finish_seconds,
+    CONCAT_WS('',
+        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((finish.finish_seconds_all + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((finish.finish_seconds_all + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR((finish.finish_seconds_all + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((finish.finish_seconds_all + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish.finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR(((finish.finish_seconds_all + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((finish.finish_seconds_all + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS finish_time_all_str,
     CONCAT_WS('',
         CASE WHEN FLOOR((finish.finish_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((finish.finish_seconds + 43200) / 86400), '天')
@@ -244,93 +248,96 @@ select
     ) AS finish_time_str
 from
 (
-    select
-        t.*,
-	    SUM(TIMESTAMPDIFF(SECOND,
-              GREATEST(t.create_time, CONCAT(dev.datestr, ' 00:00:00')),
-              LEAST(t.test_time, CONCAT(dev.datestr, ' 23:59:59')))
-        ) AS dev_seconds_all,
-	    SUM(CASE
-              WHEN dev.isholiday = 1 OR (dev.weekday IN (6, 7) AND dev.iscompday = 0) THEN 0
-              ELSE TIMESTAMPDIFF(SECOND,
-                     GREATEST(t.create_time, CONCAT(dev.datestr, ' 00:00:00')),
-                     LEAST(t.test_time, CONCAT(dev.datestr, ' 23:59:59')))
-            END
-        ) AS dev_seconds
-    from t_main t
-    join holidays dev
-    on dev.datestr between date(t.create_time) and date(t.test_time)
-	group by
-        t.project_id,
-        t.project_name,
-        t.sprint_id,
-        t.sprint_name,
-        t.sprint_seqno,
-	    t.bug_id,
-        t.bug_key,
-        t.bug_name,
-        t.author,
-        t.create_time,
-        t.test_time,
-        t.finish_time
+     SELECT
+     t.project_id,
+     t.project_name,
+     t.sprint_id,
+     t.sprint_name,
+     t.short_sprint_name,
+     t.sprint_seqno,
+     t.bug_id,
+     t.bug_key,
+     t.bug_name,
+     t.author,
+     t.create_time,
+     t.test_time,
+     t.finish_time,
+     TIMESTAMPDIFF(SECOND, t.create_time, t.test_time) AS dev_seconds_all,  -- 自然日总时长
+     COALESCE(SUM(TIMESTAMPDIFF(SECOND,
+          GREATEST(t.create_time, CONCAT(dev.datestr, ' 00:00:00')),
+          LEAST(t.test_time, CONCAT(dev.datestr, ' 23:59:59'))
+     )), 0) AS dev_seconds  -- 工作日时长
+     FROM t_main t
+     LEFT JOIN sys_workday dev  -- 改为 LEFT JOIN
+     ON dev.datestr BETWEEN DATE(t.create_time) AND DATE(t.test_time)
+     GROUP BY
+     t.project_id,
+     t.project_name,
+     t.sprint_id,
+     t.sprint_name,
+     t.short_sprint_name,
+     t.sprint_seqno,
+     t.bug_id,
+     t.bug_key,
+     t.bug_name,
+     t.author,
+     t.create_time,
+     t.test_time,
+     t.finish_time
 ) dev
 left join
 (
-    select
-        t.*,
-	    SUM(TIMESTAMPDIFF(SECOND,
-              GREATEST(t.test_time, CONCAT(test.datestr, ' 00:00:00')),
-              LEAST(t.finish_time, CONCAT(test.datestr, ' 23:59:59')))
-        ) AS test_seconds_all,
-	    SUM(CASE
-              WHEN test.isholiday = 1 OR (test.weekday IN (6, 7) AND test.iscompday = 0) THEN 0
-              ELSE TIMESTAMPDIFF(SECOND,
-                     GREATEST(t.test_time, CONCAT(test.datestr, ' 00:00:00')),
-                     LEAST(t.finish_time, CONCAT(test.datestr, ' 23:59:59')))
-            END
-        ) AS test_seconds
-    from t_main t
-    join holidays test
-    on test.datestr between date(t.test_time) and date(t.finish_time)
-	group by
-        t.project_id,
-        t.sprint_id,
-	    t.bug_id,
-        t.test_time,
-        t.finish_time
+     SELECT
+     t.project_id,
+     t.sprint_id,
+     t.bug_id,
+     t.test_time,
+     t.finish_time,
+     TIMESTAMPDIFF(SECOND, t.test_time, t.finish_time) AS test_seconds_all,  -- 自然日总时长
+     COALESCE(SUM(TIMESTAMPDIFF(SECOND,
+          GREATEST(t.test_time, CONCAT(test.datestr, ' 00:00:00')),
+          LEAST(t.finish_time, CONCAT(test.datestr, ' 23:59:59'))
+     )), 0) AS test_seconds  -- 工作日时长
+     FROM t_main t
+     LEFT JOIN sys_workday test  -- 改为 LEFT JOIN
+     ON test.datestr BETWEEN DATE(t.test_time) AND DATE(t.finish_time)
+     GROUP BY
+     t.project_id,
+     t.sprint_id,
+     t.bug_id,
+     t.test_time,
+     t.finish_time
 ) test
 on dev.project_id = test.project_id and dev.sprint_id = test.sprint_id and dev.bug_id = test.bug_id
 left join
 (
-    select
-        t.*,
-	    SUM(TIMESTAMPDIFF(SECOND,
-              GREATEST(t.create_time, CONCAT(finish.datestr, ' 00:00:00')),
-              LEAST(t.finish_time, CONCAT(finish.datestr, ' 23:59:59')))
-        ) AS finish_seconds_all,
-	    SUM(CASE
-              WHEN finish.isholiday = 1 OR (finish.weekday IN (6, 7) AND finish.iscompday = 0) THEN 0
-              ELSE TIMESTAMPDIFF(SECOND,
-                     GREATEST(t.create_time, CONCAT(finish.datestr, ' 00:00:00')),
-                     LEAST(t.finish_time, CONCAT(finish.datestr, ' 23:59:59')))
-            END
-        ) AS finish_seconds
-    from t_main t
-    join holidays finish
-    on finish.datestr between date(t.create_time) and date(t.finish_time)
-	group by
-        t.project_id,
-        t.sprint_id,
-	    t.bug_id,
-        t.create_time,
-        t.finish_time
+     SELECT
+     t.project_id,
+     t.sprint_id,
+     t.bug_id,
+     t.create_time,
+     t.finish_time,
+     TIMESTAMPDIFF(SECOND, t.create_time, t.finish_time) AS finish_seconds_all,  -- 自然日总时长
+     COALESCE(SUM(TIMESTAMPDIFF(SECOND,
+          GREATEST(t.create_time, CONCAT(finish.datestr, ' 00:00:00')),
+          LEAST(t.finish_time, CONCAT(finish.datestr, ' 23:59:59'))
+     )), 0) AS finish_seconds  -- 工作日时长
+     FROM t_main t
+     LEFT JOIN sys_workday finish  -- 改为 LEFT JOIN
+     ON finish.datestr BETWEEN DATE(t.create_time) AND DATE(t.finish_time)
+     GROUP BY
+     t.project_id,
+     t.sprint_id,
+     t.bug_id,
+     t.create_time,
+     t.finish_time
 ) finish
 on dev.project_id = finish.project_id and dev.sprint_id = finish.sprint_id and dev.bug_id = finish.bug_id
 """
 
 # 生成各Sprint故障评价完成时长表数据
 SPRINTS_BUGS_AVG_COMPLETE_DURATION_SQL = """
-insert into sprints_bugs_avg_complete_duration
+insert into rdm_bug_avgtime_sprint
 select
     project_id,
     project_name,
@@ -340,10 +347,6 @@ select
     sprint_seqno,
     dev_seconds_all,
     dev_seconds,
-    test_seconds_all,
-    test_seconds,
-    finish_seconds_all,
-    finish_seconds,
     CONCAT_WS('',
         CASE WHEN FLOOR((dev_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((dev_seconds_all + 43200) / 86400), '天')
@@ -361,6 +364,24 @@ select
              ELSE '' END
     ) AS dev_time_all_str,
     CONCAT_WS('',
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((dev_seconds + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((dev_seconds + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
+             AND FLOOR((dev_seconds + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((dev_seconds + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
+             AND FLOOR(((dev_seconds + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((dev_seconds + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS dev_time_str,
+    test_seconds_all,
+    test_seconds,
+    CONCAT_WS('',
         CASE WHEN FLOOR((test_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test_seconds_all + 43200) / 86400), '天')
              ELSE '' END,
@@ -377,38 +398,6 @@ select
              ELSE '' END
     ) AS test_time_all_str,
     CONCAT_WS('',
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((finish_seconds_all + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((finish_seconds_all + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR((finish_seconds_all + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((finish_seconds_all + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR(((finish_seconds_all + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((finish_seconds_all + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS finish_time_all_str,
-    CONCAT_WS('',
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((dev_seconds + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((dev_seconds + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
-             AND FLOOR((dev_seconds + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((dev_seconds + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
-             AND FLOOR(((dev_seconds + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((dev_seconds + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS dev_time_str,
-    CONCAT_WS('',
         CASE WHEN FLOOR((test_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test_seconds + 43200) / 86400), '天')
              ELSE '' END,
@@ -424,6 +413,24 @@ select
              THEN CONCAT(FLOOR(((test_seconds + 30) % 3600) / 60), '分')
              ELSE '' END
     ) AS test_time_str,
+    finish_seconds_all,
+    finish_seconds,
+    CONCAT_WS('',
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((finish_seconds_all + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((finish_seconds_all + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR((finish_seconds_all + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((finish_seconds_all + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR(((finish_seconds_all + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((finish_seconds_all + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS finish_time_all_str,
     CONCAT_WS('',
         CASE WHEN FLOOR((finish_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((finish_seconds + 43200) / 86400), '天')
@@ -455,7 +462,7 @@ from
         FLOOR(avg(test_seconds)) as test_seconds,
         FLOOR(avg(finish_seconds_all)) as finish_seconds_all,
         FLOOR(avg(finish_seconds)) as finish_seconds
-    from bugs_complete_duration
+    from rdm_bug_duration
     group by
         project_id,
         project_name,
@@ -468,7 +475,7 @@ from
 
 # 生成各开发人员的故障平均完成时长表的数据
 AUTHORS_BUGS_AVG_COMPLETE_DURATION_SQL = """
-insert into authors_bugs_avg_complete_duration
+insert into rdm_bug_avgtime_author
 select
     project_id,
     project_name,
@@ -480,10 +487,6 @@ select
     bug_count,
     dev_seconds_all,
     dev_seconds,
-    test_seconds_all,
-    test_seconds,
-    finish_seconds_all,
-    finish_seconds,
     CONCAT_WS('',
         CASE WHEN FLOOR((dev_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((dev_seconds_all + 43200) / 86400), '天')
@@ -501,6 +504,24 @@ select
              ELSE '' END
     ) AS dev_time_all_str,
     CONCAT_WS('',
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((dev_seconds + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((dev_seconds + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
+             AND FLOOR((dev_seconds + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((dev_seconds + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
+             AND FLOOR(((dev_seconds + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((dev_seconds + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS dev_time_str,
+    test_seconds_all,
+    test_seconds,
+    CONCAT_WS('',
         CASE WHEN FLOOR((test_seconds_all + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test_seconds_all + 43200) / 86400), '天')
              ELSE '' END,
@@ -517,38 +538,6 @@ select
              ELSE '' END
     ) AS test_time_all_str,
     CONCAT_WS('',
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((finish_seconds_all + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((finish_seconds_all + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR((finish_seconds_all + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((finish_seconds_all + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
-             AND FLOOR(((finish_seconds_all + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((finish_seconds_all + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS finish_time_all_str,
-    CONCAT_WS('',
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR((dev_seconds + 43200) / 86400), '天')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) > 0
-             THEN CONCAT(FLOOR(((dev_seconds + 1800) % 86400) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
-             AND FLOOR((dev_seconds + 30) / 3600) > 0
-             THEN CONCAT(FLOOR((dev_seconds + 30) / 3600), '小时')
-             ELSE '' END,
-        CASE WHEN FLOOR((dev_seconds + 43200) / 86400) = 0
-             AND FLOOR(((dev_seconds + 30) % 3600) / 60) > 0
-             THEN CONCAT(FLOOR(((dev_seconds + 30) % 3600) / 60), '分')
-             ELSE '' END
-    ) AS dev_time_str,
-    CONCAT_WS('',
         CASE WHEN FLOOR((test_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((test_seconds + 43200) / 86400), '天')
              ELSE '' END,
@@ -564,6 +553,24 @@ select
              THEN CONCAT(FLOOR(((test_seconds + 30) % 3600) / 60), '分')
              ELSE '' END
     ) AS test_time_str,
+    finish_seconds_all,
+    finish_seconds,
+    CONCAT_WS('',
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR((finish_seconds_all + 43200) / 86400), '天')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) > 0
+             THEN CONCAT(FLOOR(((finish_seconds_all + 1800) % 86400) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR((finish_seconds_all + 30) / 3600) > 0
+             THEN CONCAT(FLOOR((finish_seconds_all + 30) / 3600), '小时')
+             ELSE '' END,
+        CASE WHEN FLOOR((finish_seconds_all + 43200) / 86400) = 0
+             AND FLOOR(((finish_seconds_all + 30) % 3600) / 60) > 0
+             THEN CONCAT(FLOOR(((finish_seconds_all + 30) % 3600) / 60), '分')
+             ELSE '' END
+    ) AS finish_time_all_str,
     CONCAT_WS('',
         CASE WHEN FLOOR((finish_seconds + 43200) / 86400) > 0
              THEN CONCAT(FLOOR((finish_seconds + 43200) / 86400), '天')
@@ -597,7 +604,7 @@ from
         FLOOR(avg(test_seconds)) as test_seconds,
         FLOOR(avg(finish_seconds_all)) as finish_seconds_all,
         FLOOR(avg(finish_seconds)) as finish_seconds
-    from bugs_complete_duration
+    from rdm_bug_duration
     group by
         project_id,
         project_name,

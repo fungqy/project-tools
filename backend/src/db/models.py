@@ -17,7 +17,7 @@ Base = declarative_base()
 class User(Base):
     """用户模型"""
 
-    __tablename__ = "users"
+    __tablename__ = "sys_users"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False)
@@ -60,12 +60,12 @@ class User(Base):
 class JiraAuthConfig(Base):
     """JIRA认证配置模型"""
 
-    __tablename__ = "jira_auth_configs"
+    __tablename__ = "project_jira_auth"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(
         BigInteger,
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("sys_users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
     )
@@ -117,12 +117,12 @@ class ProjectConfig(Base):
     jira_user = Column(String(100), default="")
     jira_token = Column(String(255), default="")
     jira_auth_config_id = Column(
-        BigInteger, ForeignKey("jira_auth_configs.id", ondelete="SET NULL")
+        BigInteger, ForeignKey("project_jira_auth.id", ondelete="SET NULL")
     )
-    created_by = Column(BigInteger, ForeignKey("users.id"))
+    created_by = Column(BigInteger, ForeignKey("sys_users.id"))
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    updated_by = Column(BigInteger, ForeignKey("users.id"))
+    updated_by = Column(BigInteger, ForeignKey("sys_users.id"))
 
     # 关联：JIRA认证配置
     jira_auth_config = relationship("JiraAuthConfig", back_populates="projects")
@@ -458,7 +458,7 @@ class AvgMetricByProjectDeveloper(Base):
 class TaskExecutionLog(Base):
     """任务执行记录模型"""
 
-    __tablename__ = "task_execution_logs"
+    __tablename__ = "project_task_logs"
 
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     project_config_id = Column(

@@ -5,8 +5,8 @@ from typing import List, Optional
 
 import pandas as pd
 
-from db.dboperator import DbOperator
-from db.sqls import (
+from ..db.dboperator import DbOperator
+from ..db.sqls import (
     AUTHORS_BUGS_AVG_COMPLETE_DURATION_SQL,
     BUGS_COMPLETE_DURATION_SQL,
     SPRINTS_BUGS_AVG_COMPLETE_DURATION_SQL,
