@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import auth, projects
+from api.routes import auth, projects, reports
 from api.routes import scheduler as scheduler_routes
 from api.scheduler import TaskScheduler
 
@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(scheduler_routes.router)
+app.include_router(reports.router)
 
 
 @app.get("/", tags=["健康检查"])
