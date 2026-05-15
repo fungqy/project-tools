@@ -26,7 +26,9 @@ const loadingBugList = ref(false)
 const bugListTitle = ref('')
 
 const priorityChartRef = ref<HTMLElement | null>(null)
+const tagChartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
+let tagChartInstance: echarts.ECharts | null = null
 
 const PRIORITY_COLORS: Record<string, string> = {
   '致命': '#DC2626',
@@ -35,6 +37,12 @@ const PRIORITY_COLORS: Record<string, string> = {
   '轻微': '#22C55E',
   '优化': '#6B7280',
 }
+
+const TAG_COLORS = [
+  '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
+  '#14B8A6', '#06B6D4', '#84CC16', '#F97316',
+  '#64748B', '#A855F7',
+]
 
 const priorityChartData = computed(() => {
   if (!bugDetail.value) return []
@@ -121,10 +129,100 @@ function renderPriorityChart() {
   })
 }
 
+const tagChartData = computed(() => {
+  if (!bugDetail.value) return []
+  const result: { name: string; value: number }[] = []
+  for (const tag of bugDetail.value.tags) {
+    let total = 0
+    for (const developer of bugDetail.value.developers) {
+      const devData = bugDetail.value.data[developer.developer]
+      if (!devData) continue
+      for (const priority of Object.keys(devData)) {
+        if (devData[priority] && devData[priority][tag]) {
+          total += devData[priority][tag]
+        }
+      }
+    }
+    if (total > 0) {
+      result.push({ name: tag, value: total })
+    }
+  }
+  return result
+})
+
+function renderTagChart() {
+  if (!tagChartRef.value || tagChartData.value.length === 0) return
+  if (!tagChartInstance) {
+    tagChartInstance = echarts.init(tagChartRef.value)
+  }
+  const total = tagChartData.value.reduce((sum, item) => sum + item.value, 0)
+  tagChartInstance.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} ({d}%)',
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: 0,
+      textStyle: { fontSize: 12, color: '#6B7280' },
+    },
+    series: [{
+      type: 'pie',
+      radius: ['45%', '72%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 6,
+        borderColor: '#fff',
+        borderWidth: 2,
+      },
+      label: {
+        show: true,
+        formatter: '{b}\n{c}',
+        fontSize: 12,
+      },
+      emphasis: {
+        label: { show: true, fontSize: 14, fontWeight: 'bold' },
+      },
+      data: tagChartData.value.map((item, idx) => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: TAG_COLORS[idx % TAG_COLORS.length] },
+      })),
+    }],
+    graphic: [{
+      type: 'text',
+      left: 'center',
+      top: '38%',
+      style: {
+        text: `${total}`,
+        fontSize: 24,
+        fontWeight: 700,
+        fill: '#111827',
+        textAlign: 'center',
+      },
+    }, {
+      type: 'text',
+      left: 'center',
+      top: '48%',
+      style: {
+        text: '故障总数',
+        fontSize: 12,
+        fill: '#9CA3AF',
+        textAlign: 'center',
+      },
+    }],
+  })
+}
+
 function onBugDialogClose() {
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
+  }
+  if (tagChartInstance) {
+    tagChartInstance.dispose()
+    tagChartInstance = null
   }
 }
 
@@ -188,6 +286,7 @@ async function openBugDetail() {
     bugDetail.value = await reportsApi.getBugDetails(selectedSprint.value)
     await nextTick()
     renderPriorityChart()
+    renderTagChart()
   } catch {
     ElMessage.error('加载故障详情失败')
   } finally {
@@ -480,9 +579,15 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="bug-detail-chart" v-if="bugDetail && priorityChartData.length > 0">
-          <h4 class="chart-title">故障级别分布</h4>
-          <div ref="priorityChartRef" class="chart-container"></div>
+        <div class="bug-detail-chart" v-if="bugDetail && (priorityChartData.length > 0 || tagChartData.length > 0)">
+          <div class="chart-item" v-if="priorityChartData.length > 0">
+            <h4 class="chart-title">故障级别分布</h4>
+            <div ref="priorityChartRef" class="chart-container"></div>
+          </div>
+          <div class="chart-item" v-if="tagChartData.length > 0">
+            <h4 class="chart-title">故障原因分布</h4>
+            <div ref="tagChartRef" class="chart-container"></div>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -664,6 +769,13 @@ onMounted(() => {
 
 .bug-detail-chart {
   flex: 0 0 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+.chart-item {
   display: flex;
   flex-direction: column;
   align-items: center;
