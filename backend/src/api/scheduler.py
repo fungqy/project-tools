@@ -295,10 +295,6 @@ def run_story_task(remind_config: ProjectRemindConfig, scheduled_time: datetime)
     """执行故事提醒任务"""
     from task import remind_week_story as module
 
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info(f"[{remind_config.project_name}] 非工作日，跳过故事提醒")
-        return
     logger.info(f"[{remind_config.project_name}] 执行本周待完成故事提醒...")
     try:
         module_run(module, remind_config)
@@ -320,10 +316,6 @@ def run_task_reminder(remind_config: ProjectRemindConfig, scheduled_time: dateti
     """执行子任务到期提醒"""
     from task import remind_expire_task as module
 
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info(f"[{remind_config.project_name}] 非工作日，跳过任务提醒")
-        return
     logger.info(f"[{remind_config.project_name}] 执行子任务到期提醒...")
     try:
         module_run(module, remind_config)
@@ -347,10 +339,6 @@ def run_sonar_scan_reminder(
     """执行Sonar扫描提醒"""
     import task.remind_sonar_scan as sonar_module
 
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info(f"[{remind_config.project_name}] 非工作日，跳过Sonar扫描提醒")
-        return
     logger.info(f"[{remind_config.project_name}] 执行Sonar扫描提醒...")
     try:
         module_run(sonar_module, remind_config)
@@ -371,11 +359,6 @@ def run_sonar_scan_reminder(
 def run_report_data():
     """执行报表数据生成"""
     from task.report_rdm_data import process
-
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info("非工作日，跳过报表数据生成")
-        return
 
     now = datetime.now()
 
@@ -406,11 +389,6 @@ def run_report_data():
 
 def run_all_story_tasks():
     """执行所有需要提醒的项目的故事提醒任务"""
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info("非工作日，跳过所有故事提醒任务")
-        return
-
     now = datetime.now()
 
     logger.info(
@@ -440,11 +418,6 @@ def run_all_story_tasks():
 
 def run_all_task_reminders():
     """执行所有需要提醒的项目的任务提醒"""
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info("非工作日，跳过所有任务提醒")
-        return
-
     now = datetime.now()
 
     logger.info(
@@ -474,11 +447,6 @@ def run_all_task_reminders():
 
 def run_all_sonar_scan_reminders():
     """执行所有需要提醒的项目的Sonar扫描提醒"""
-    dateattr = DateAttr()
-    if not dateattr.is_workday:
-        logger.info("非工作日，跳过所有Sonar扫描提醒")
-        return
-
     now = datetime.now()
 
     logger.info(
@@ -520,6 +488,11 @@ class TaskScheduler:
         """设置定时任务，每分钟触发检查"""
         # 每10分钟触发一次，由 run_all_xxx 函数检查 is_workday 和项目时间配置是否匹配
         trigger = CronTrigger(minute="*/10")
+
+        dateattr = DateAttr()
+        if not dateattr.is_workday:
+            logger.info("非工作日，跳过所有任务提醒")
+            return
 
         # 故事提醒
         self.scheduler.add_job(

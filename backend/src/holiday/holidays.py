@@ -1,47 +1,51 @@
+import logging
 from datetime import date
 
 import pandas as pd
+from sqlalchemy import text
 
-from db.dboperator import DbOperator
+from ..db.dboperator import DbOperator
+from .holiday_service import get_year_workdays
 
-from .holiday_service import get_holiday_data_for_db
+logger = logging.getLogger("Holiday")
 
 
-def update_holidays_table(years: list[int] | None = None):
-    """更新节假日数据库表
+def update_holidays_table():
+    """更新工作日数据库表"""
 
-    Args:
-        years: 要更新的年份列表，默认为当前年份和下一年
-    """
-    if years is None:
-        today = date.today()
-        years = [today.year, today.year + 1]
+    year = date.today().year
 
-    for year in years:
-        print(f"正在处理 {year} 年的节假日数据...")
-        result = get_holiday_data_for_db(year)
-        if not result:
-            print(f"  获取 {year} 年数据失败，跳过")
-            continue
+    # 检查当前年份数据是否已存在
+    engine = DbOperator.get_engine()
+    check_query = text("SELECT COUNT(*) FROM sys_workday WHERE year = :year")
 
-        print(f"  获取到 {len(result)} 条数据")
+    with engine.connect() as conn:
+        count = conn.execute(check_query, {"year": year}).scalar()
 
-        # 清空库表并写入数据
-        DbOperator.truncate_table("holidays")
-        holidays_df = pd.DataFrame(result)
-        holidays_df.to_sql(
-            "holidays", con=DbOperator.get_engine(), if_exists="append", index=False
-        )
-        print(f"  {year} 年数据写入完成")
+    if count and count > 0:
+        logger.info(f"{year} 年的工作日数据已存在，跳过获取和写入")
+        return
+
+    logger.info(f"正在处理 {year} 年的工作日数据...")
+    result = get_year_workdays(year)
+    if not result:
+        logger.error(f"获取 {year} 年数据失败，跳过")
+        return
+
+    logger.info(f"获取到 {len(result)} 条数据")
+
+    # 写入数据
+    holidays_df = pd.DataFrame(result)
+    holidays_df.to_sql("sys_workday", con=engine, if_exists="append", index=False)
+    logger.info(f"{year} 年数据写入完成")
 
 
 def main():
     """主函数"""
     try:
         update_holidays_table()
-        print("节假日表更新完成!")
     except Exception as err:
-        print(f"脚本执行出错: {err}")
+        logger.error(f"脚本执行出错: {err}")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from typing import Optional
 
 import requests
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Holiday")
 
 # 节假日数据缓存
 # {year: {"holidays": set(), "workdays": set()}}
@@ -48,7 +48,7 @@ def _fetch_holidays_from_url(year: int) -> Optional[dict[str, set[str]]]:
         return None
 
 
-def get_holidays_for_year(year: int) -> Optional[dict[str, set[str]]]:
+def _get_year_holiday(year: int) -> Optional[dict[str, set[str]]]:
     """获取指定年份的节假日数据（优先使用缓存）"""
     global _cache_year
 
@@ -70,61 +70,43 @@ def get_holidays_for_year(year: int) -> Optional[dict[str, set[str]]]:
     return None
 
 
-def is_holiday_or_compday(d: date) -> tuple[bool, bool]:
-    """判断指定日期是否为节假日或补班日
+def check_isworkday(d: date) -> bool:
+    """判断指定日期是否为工作日
 
     Args:
         d: 日期
 
     Returns:
-        tuple: (is_holiday, is_compday)
-            - is_holiday=True, is_compday=False: 节假日
-            - is_holiday=False, is_compday=True: 补班日
-            - is_holiday=False, is_compday=False: 普通工作日
+        bool: 是否为工作日
     """
-    date_str = d.strftime("%Y-%m-%d")
-    year = d.year
 
     # 加载节假日数据
-    holiday_data = get_holidays_for_year(year)
+    holiday_data = _get_year_holiday(d.year)
 
     if holiday_data is None:
-        # 如果获取失败，默认按工作日处理
-        return False, False
+        return True
 
     holidays = holiday_data["holidays"]
     workdays = holiday_data["workdays"]
 
-    # 节假日（isOffDay=true）
-    if date_str in holidays:
-        return True, False
+    weekday = d.weekday() + 1
 
-    # 补班日（isOffDay=false但在节假日数据中，表示需要上班）
-    if date_str in workdays:
-        return False, True
+    # 判断是否是假日或补班日
+    date_str = d.strftime("%Y-%m-%d")
+    isholiday = date_str in holidays
+    iscompday = date_str in workdays
 
-    # 不在节假日数据中，按周末判断
-    if d.weekday() in (5, 6):
-        return False, False
-
-    return False, False
+    # 判断是否为工作日
+    return (weekday <= 5 and not isholiday) or iscompday
 
 
-def get_holiday_data_for_db(year: int) -> list[dict]:
-    """获取指定年份的节假日数据，用于写入数据库
+def get_year_workdays(year: int) -> list[dict]:
+    """获取指定年份的工作日数据，用于写入数据库
 
     Returns:
-        list: 包含 datestr, weekday, isholiday, iscompday 的字典列表
+        list: 包含 year, datestr, isworkday, isholiday, iscompday 的字典列表
     """
     import calendar
-
-    holiday_data = get_holidays_for_year(year)
-    if holiday_data is None:
-        logger.error(f"无法获取 {year} 年的节假日数据")
-        return []
-
-    holidays = holiday_data["holidays"]
-    workdays = holiday_data["workdays"]
 
     result = []
     for month in range(1, 13):
@@ -132,25 +114,14 @@ def get_holiday_data_for_db(year: int) -> list[dict]:
 
         for day in range(1, days_in_month + 1):
             current_date = date(year, month, day)
-            datestr = current_date.strftime("%Y-%m-%d")
-            weekday = current_date.weekday() + 1  # 周一=1, 周日=7
+            isworkday = check_isworkday(current_date)
 
-            # 判断是否是假日或补班日
-            isholiday = 0
-            iscompday = 0
-
-            if datestr in holidays:
-                isholiday = 1
-            elif datestr in workdays:
-                iscompday = 1
-
-            result.append(
-                {
-                    "datestr": datestr,
-                    "weekday": weekday,
-                    "isholiday": isholiday,
-                    "iscompday": iscompday,
-                }
-            )
+            if isworkday:
+                result.append(
+                    {
+                        "year": year,
+                        "datestr": current_date.strftime("%Y-%m-%d"),
+                    }
+                )
 
     return result

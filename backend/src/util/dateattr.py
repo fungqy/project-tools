@@ -1,8 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
-from pymysql import Date
-
-from src.holiday import is_holiday_or_compday as _check_holiday
+from src.holiday import check_isworkday as _check_workday
 
 
 class DateAttr:
@@ -16,10 +14,6 @@ class DateAttr:
         return self._date.weekday() + 1
 
     @property
-    def is_weekend(self):
-        return self._date.weekday() in (5, 6)
-
-    @property
     def firstday_of_week(self):
         return DateAttr.firstdayofweek(self._date)
 
@@ -28,16 +22,8 @@ class DateAttr:
         return DateAttr.lastdayofweek(self._date)
 
     @property
-    def holiday_or_compday(self):
-        return _check_holiday(self._date)
-
-    @property
     def is_workday(self):
-        _is_holiday, _is_compday = _check_holiday(self._date)
-        if _is_holiday or (self._date.weekday() in (5, 6) and not _is_compday):
-            return False
-        else:
-            return True
+        return _check_workday(self._date)
 
     @staticmethod
     def firstdayofweek(d=date.today()):
@@ -49,18 +35,6 @@ class DateAttr:
         if days_to_go < 0:
             days_to_go += 7
         return d + timedelta(days=days_to_go)
-
-    @staticmethod
-    def is_holiday_or_compday(d) -> tuple[bool, bool]:
-        """判断指定日期是否为节假日或补班日
-
-        Returns:
-            tuple: (is_holiday, is_compday)
-                - is_holiday=True, is_compday=False: 节假日
-                - is_holiday=False, is_compday=True: 补班日
-                - is_holiday=False, is_compday=False: 普通工作日
-        """
-        return _check_holiday(d)
 
     @staticmethod
     def remove_timezone(datetime_str):
@@ -93,20 +67,9 @@ class DateAttr:
 
 
 if __name__ == "__main__":
-    from src.holiday import is_holiday_or_compday
-
-    print(is_holiday_or_compday(date(2026, 1, 1)))  # 元旦，应该返回 (True, False)
-    print(is_holiday_or_compday(date(2026, 1, 4)))  # 春节补班，应该返回 (False, True)
-    print(is_holiday_or_compday(date(2026, 5, 10)))  # 春节，应该返回 (True, False)
-
     dt = DateAttr(date(2026, 5, 9))
     print(dt.is_workday)
 
     dt2 = DateAttr()
     print(dt2.is_workday)
     print(dt2.firstday_of_week)
-
-    # 测试今天
-    today = date.today()
-    isholiday, iscompday = is_holiday_or_compday(today)
-    print(f"今天 ({today}): 节假日={isholiday}, 补班日={iscompday}")
