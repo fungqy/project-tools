@@ -5,7 +5,7 @@ import { ElResult, ElButton } from 'element-plus'
 <template>
   <div class="page-placeholder">
     <el-result
-      title="数据大屏模块"
+      title="文档生成模块"
       sub-title="该模块正在规划中，敬请期待..."
     >
       <template #extra>

@@ -36,7 +36,7 @@ const routes: RouteRecordRaw[] = [
         path: "/sonar",
         name: "Sonar",
         component: () => import("@/views/sonar/Sonar.vue"),
-        meta: { title: "Sonar扫描", icon: "Monitor" },
+        meta: { title: "代码扫描", icon: "Monitor" },
     },
     {
         path: "/reports",
@@ -48,7 +48,7 @@ const routes: RouteRecordRaw[] = [
         path: "/screen",
         name: "Screen",
         component: () => import("@/views/screen/Screen.vue"),
-        meta: { title: "数据大屏", icon: "FullScreen" },
+        meta: { title: "文档生成", icon: "FullScreen" },
     },
 ];
 

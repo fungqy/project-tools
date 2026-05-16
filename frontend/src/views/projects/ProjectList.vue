@@ -177,7 +177,7 @@ async function handleDelete(row: ProjectConfig) {
             <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
-        <el-table-column label="SONAR检查" width="120" align="center">
+        <el-table-column label="代码扫描" width="120" align="center">
           <template #default="{ row }">
             <span v-if="row.need_sonar_scan_remind" class="reminder-on">
               {{ row.sonar_remind_time }}

@@ -5,7 +5,7 @@ import { ElResult, ElButton } from 'element-plus'
 <template>
   <div class="page-placeholder">
     <el-result
-      title="SONAR 检查模块"
+      title="代码扫描模块"
       sub-title="该模块正在规划中，敬请期待..."
     >
       <template #extra>

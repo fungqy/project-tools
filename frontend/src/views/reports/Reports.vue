@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { reportsApi, type ProjectOption, type SprintOption, type SprintMetrics, type BugDetailResponse, type BugListItem } from '@/api/reports'
+import { reportsApi, type ProjectOption, type SprintOption, type SprintMetrics, type BugDetailResponse, type BugListItem, type ReopenBugItem } from '@/api/reports'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 
@@ -27,10 +27,17 @@ const bugList = ref<BugListItem[]>([])
 const loadingBugList = ref(false)
 const bugListTitle = ref('')
 
+// 故障重开弹窗
+const reopenDialogVisible = ref(false)
+const reopenBugs = ref<ReopenBugItem[]>([])
+const loadingReopenBugs = ref(false)
+
 const priorityChartRef = ref<HTMLElement | null>(null)
 const tagChartRef = ref<HTMLElement | null>(null)
+const developerChartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 let tagChartInstance: echarts.ECharts | null = null
+let developerChartInstance: echarts.ECharts | null = null
 
 const PRIORITY_COLORS: Record<string, string> = {
   '致命': '#DC2626',
@@ -44,6 +51,13 @@ const TAG_COLORS = [
   '#6366F1', '#8B5CF6', '#EC4899', '#F43F5E',
   '#14B8A6', '#06B6D4', '#84CC16', '#F97316',
   '#64748B', '#A855F7',
+]
+
+const DEVELOPER_COLORS = [
+  '#6366F1', '#EC4899', '#14B8A6', '#F97316',
+  '#8B5CF6', '#F43F5E', '#06B6D4', '#84CC16',
+  '#64748B', '#A855F7', '#DC2626', '#EA580C',
+  '#F59E0B', '#22C55E', '#3B82F6', '#E11D48',
 ]
 
 const priorityChartData = computed(() => {
@@ -78,7 +92,7 @@ function renderPriorityChart() {
       backgroundColor: '#1A1A2E',
       borderColor: 'transparent',
       padding: [10, 16],
-      textStyle: { color: '#fff', fontSize: 13 },
+      textStyle: { color: '#fff', fontSize: 20 },
       formatter: '{b}: {c} ({d}%)',
     },
     legend: { show: false },
@@ -110,22 +124,11 @@ function renderPriorityChart() {
       top: '36%',
       style: {
         text: `${total}`,
-        fontSize: 32,
+        fontSize: 80,
         fontWeight: 700,
         fill: '#1A1A2E',
         textAlign: 'center',
         fontFamily: 'Sora, sans-serif',
-      },
-    }, {
-      type: 'text',
-      left: 'center',
-      top: '50%',
-      style: {
-        text: '故障总数',
-        fontSize: 12,
-        fill: '#9CA3AF',
-        textAlign: 'center',
-        fontFamily: 'DM Sans, sans-serif',
       },
     }],
   })
@@ -164,7 +167,7 @@ function renderTagChart() {
       backgroundColor: '#1A1A2E',
       borderColor: 'transparent',
       padding: [10, 16],
-      textStyle: { color: '#fff', fontSize: 13 },
+      textStyle: { color: '#fff', fontSize: 20 },
       formatter: '{b}: {c} ({d}%)',
     },
     legend: { show: false },
@@ -196,22 +199,73 @@ function renderTagChart() {
       top: '36%',
       style: {
         text: `${total}`,
-        fontSize: 32,
+        fontSize: 80,
         fontWeight: 700,
         fill: '#1A1A2E',
         textAlign: 'center',
         fontFamily: 'Sora, sans-serif',
       },
-    }, {
+    }],
+  })
+}
+
+const developerChartData = computed(() => {
+  if (!bugDetail.value) return []
+  return bugDetail.value.developers.map((dev) => ({
+    name: dev.developer,
+    value: getRowTotal(dev.developer),
+  })).filter(item => item.value > 0)
+})
+
+function renderDeveloperChart() {
+  if (!developerChartRef.value || developerChartData.value.length === 0) return
+  if (!developerChartInstance) {
+    developerChartInstance = echarts.init(developerChartRef.value)
+  }
+  const total = developerChartData.value.reduce((sum, item) => sum + item.value, 0)
+  developerChartInstance.setOption({
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 20 },
+      formatter: '{b}: {c} ({d}%)',
+    },
+    legend: { show: false },
+    series: [{
+      type: 'pie',
+      radius: ['55%', '80%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
+      },
+      label: { show: false },
+      emphasis: {
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
+      },
+      data: developerChartData.value.map((item, idx) => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] },
+      })),
+    }],
+    graphic: [{
       type: 'text',
       left: 'center',
-      top: '50%',
+      top: '36%',
       style: {
-        text: '故障总数',
-        fontSize: 12,
-        fill: '#9CA3AF',
+        text: `${total}`,
+        fontSize: 80,
+        fontWeight: 700,
+        fill: '#1A1A2E',
         textAlign: 'center',
-        fontFamily: 'DM Sans, sans-serif',
+        fontFamily: 'Sora, sans-serif',
       },
     }],
   })
@@ -225,6 +279,10 @@ function onBugDialogClose() {
   if (tagChartInstance) {
     tagChartInstance.dispose()
     tagChartInstance = null
+  }
+  if (developerChartInstance) {
+    developerChartInstance.dispose()
+    developerChartInstance = null
   }
 }
 
@@ -319,10 +377,25 @@ async function openBugDetail() {
     await nextTick()
     renderPriorityChart()
     renderTagChart()
+    renderDeveloperChart()
   } catch {
     ElMessage.error('加载故障详情失败')
   } finally {
     loadingBugDetail.value = false
+  }
+}
+
+async function openReopenBugs() {
+  if (!selectedSprint.value || metrics.value.bug_reopen_count === 0) return
+  reopenDialogVisible.value = true
+  loadingReopenBugs.value = true
+  try {
+    const res = await reportsApi.getReopenBugs(selectedSprint.value)
+    reopenBugs.value = res
+  } catch {
+    ElMessage.error('加载故障重开列表失败')
+  } finally {
+    loadingReopenBugs.value = false
   }
 }
 
@@ -335,7 +408,7 @@ async function openBugList(developer: string, priority: string, tag: string) {
   bugListDialogVisible.value = true
   loadingBugList.value = true
   try {
-    const res = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
+    const res = await reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
     bugList.value = res
   } catch {
     ElMessage.error('加载故障明细失败')
@@ -356,7 +429,7 @@ async function openBugListByRow(developer: string) {
     const allItems: BugListItem[] = []
     for (const priority of allPriorities) {
       for (const tag of allTags) {
-        const res = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
+        const res = await reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
         allItems.push(...res)
       }
     }
@@ -367,6 +440,54 @@ async function openBugListByRow(developer: string) {
     ElMessage.error('加载故障明细失败')
   } finally {
     loadingBugList.value = false
+  }
+}
+
+async function openBugListBySummary(priority: string, tag: string) {
+  if (!selectedSprint.value) return
+  bugListTitle.value = `合计 - ${priority} - ${tag}`
+  bugListDialogVisible.value = true
+  loadingBugList.value = true
+  try {
+    const res = await reportsApi.getBugList(selectedSprint.value, priority, tag)
+    res.forEach((item, idx) => item.index = idx + 1)
+    bugList.value = res
+  } catch {
+    ElMessage.error('加载故障明细失败')
+  } finally {
+    loadingBugList.value = false
+  }
+}
+
+function onTableSectionClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  const td = target.closest('td')
+  if (!td) return
+  const footer = target.closest('.el-table__footer')
+  if (!footer) return
+
+  const row = td.parentElement
+  if (!row) return
+  const cells = Array.from(row.children)
+  const colIdx = cells.indexOf(td)
+  if (colIdx <= 0) return
+
+  const priorities = bugDetail.value?.priorities ?? []
+  const tags = bugDetail.value?.tags ?? []
+  const colPerPriority = tags.length
+  const totalCols = priorities.length * colPerPriority
+
+  if (colIdx > totalCols) return
+
+  const priorityIdx = colIdx - 1
+  const pIdx = Math.floor(priorityIdx / colPerPriority)
+  const tIdx = priorityIdx % colPerPriority
+
+  if (pIdx < priorities.length && tIdx < tags.length) {
+    const text = td.textContent?.trim() || ''
+    if (text && text !== '—') {
+      openBugListBySummary(priorities[pIdx], tags[tIdx])
+    }
   }
 }
 
@@ -398,13 +519,19 @@ function getTableSummary({ columns }: { columns: any[]; data: any[] }) {
   const tags = bugDetail.value?.tags ?? []
   const colPerPriority = tags.length
 
-  columns.forEach((column: any, idx: number) => {
+  columns.forEach((_column: any, idx: number) => {
     if (idx === 0) {
-      sums[idx] = '全部合计'
+      sums[idx] = '合计'
       return
     }
-    if (column.property === undefined) {
-      sums[idx] = ''
+    if (idx === columns.length - 1) {
+      let rowTotalSum = 0
+      if (bugDetail.value) {
+        for (const dev of bugDetail.value.developers) {
+          rowTotalSum += getRowTotal(dev.developer)
+        }
+      }
+      sums[idx] = rowTotalSum > 0 ? String(rowTotalSum) : '—'
       return
     }
     const priorityIdx = idx - 1
@@ -508,7 +635,7 @@ onMounted(() => {
         <div class="click-hint" v-if="metrics.bug_count > 0">点击查看详情</div>
       </div>
 
-      <div class="metric-card">
+      <div class="metric-card clickable" @click="openReopenBugs">
         <div class="metric-header">
           <span class="metric-name">故障重开数</span>
           <div class="metric-icon reopen-icon">
@@ -522,6 +649,7 @@ onMounted(() => {
           <span class="metric-value">{{ metrics.bug_reopen_count }}</span>
           <span class="metric-sub" v-if="metrics.bug_count > 0">重开率 {{ bugReopenRate }}</span>
         </div>
+        <div class="click-hint" v-if="metrics.bug_reopen_count > 0">点击查看详情</div>
       </div>
 
       <div class="metric-card">
@@ -578,10 +706,10 @@ onMounted(() => {
     >
       <div v-loading="loadingBugDetail" class="bug-detail-content" v-if="bugDetail">
         <!-- Charts Row -->
-        <div class="charts-row" v-if="priorityChartData.length > 0 || tagChartData.length > 0">
+        <div class="charts-row" v-if="priorityChartData.length > 0 || tagChartData.length > 0 || developerChartData.length > 0">
           <div class="chart-card" v-if="priorityChartData.length > 0">
             <div class="chart-card-header">
-              <span class="chart-card-title">故障级别分布</span>
+              <span class="chart-card-title">级别分布</span>
               <div class="chart-legend">
                 <div
                   v-for="item in priorityChartData"
@@ -599,7 +727,7 @@ onMounted(() => {
 
           <div class="chart-card" v-if="tagChartData.length > 0">
             <div class="chart-card-header">
-              <span class="chart-card-title">故障原因分布</span>
+              <span class="chart-card-title">原因分布</span>
               <div class="chart-legend">
                 <div
                   v-for="(item, idx) in tagChartData"
@@ -614,13 +742,31 @@ onMounted(() => {
             </div>
             <div ref="tagChartRef" class="chart-container"></div>
           </div>
+
+          <div class="chart-card" v-if="developerChartData.length > 0">
+            <div class="chart-card-header">
+              <span class="chart-card-title">人员分布</span>
+              <div class="chart-legend">
+                <div
+                  v-for="(item, idx) in developerChartData"
+                  :key="item.name"
+                  class="legend-item"
+                >
+                  <span class="legend-dot" :style="{ background: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] }"></span>
+                  <span class="legend-label">{{ item.name }}</span>
+                  <span class="legend-value">{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+            <div ref="developerChartRef" class="chart-container"></div>
+          </div>
         </div>
 
         <!-- Table Section -->
-        <div class="table-section">
+        <div class="table-section" @click="onTableSectionClick">
           <h3 class="section-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-            故障分布明细
+            分布明细
           </h3>
           <el-table
             :data="bugDetail.developers"
@@ -632,7 +778,7 @@ onMounted(() => {
             show-summary
             class="bug-table"
           >
-            <el-table-column prop="developer" label="开发" fixed width="130">
+            <el-table-column prop="developer" label="开发" fixed width="160">
               <template #default="{ row }">
                 <div class="developer-cell">
                   <span class="developer-avatar">{{ row.developer.slice(0, 1) }}</span>
@@ -711,6 +857,37 @@ onMounted(() => {
           <el-table-column prop="source" label="来源" width="80" align="center" />
         </el-table>
         <el-empty v-else description="暂无数据" />
+      </div>
+    </el-dialog>
+
+    <!-- Reopen Bugs Dialog -->
+    <el-dialog
+      v-model="reopenDialogVisible"
+      title="故障重开列表"
+      width="95%"
+      class="bug-detail-dialog"
+      fullscreen
+      align-center
+    >
+      <div v-loading="loadingReopenBugs">
+        <el-table
+          v-if="reopenBugs.length > 0"
+          :data="reopenBugs"
+          border
+          stripe
+          style="width: 100%"
+        >
+          <el-table-column prop="index" label="序号" width="80" align="center" />
+          <el-table-column prop="issue_key" label="编码" width="130" />
+          <el-table-column prop="issue_name" label="名称" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="bug_maker" label="开发" width="100" />
+          <el-table-column prop="reporter" label="提出" width="100" />
+          <el-table-column prop="bug_type" label="类型" width="150" align="center" />
+          <el-table-column prop="priority" label="级别" width="80" align="center" />
+          <el-table-column prop="bug_reason" label="原因" width="200" show-overflow-tooltip />
+          <el-table-column prop="resolution" label="结果" width="150" align="center" />
+        </el-table>
+        <el-empty v-else description="暂无重开故障数据" />
       </div>
     </el-dialog>
   </div>
@@ -881,7 +1058,7 @@ onMounted(() => {
 // ── Charts Row ───────────────────────────────────────────────
 .charts-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 20px;
   margin-bottom: 28px;
 }
@@ -905,7 +1082,7 @@ onMounted(() => {
 }
 
 .chart-card-title {
-  font-size: 15px;
+  font-size: 25px;
   font-weight: 600;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
@@ -937,13 +1114,14 @@ onMounted(() => {
 .legend-label {
   color: var(--ink-secondary);
   font-weight: 500;
+  font-size: 18px;
 }
 
 .legend-value {
   color: var(--ink-primary);
   font-weight: 700;
   font-family: 'Sora', sans-serif;
-  font-size: 13px;
+  font-size: 18px;
 }
 
 .chart-container {
@@ -965,7 +1143,7 @@ onMounted(() => {
 
   :deep(.el-table__header th) {
     background: var(--bg-muted);
-    font-size: 12px;
+    font-size: 18px;
     font-weight: 600;
     color: var(--ink-secondary);
     text-transform: uppercase;
@@ -975,13 +1153,29 @@ onMounted(() => {
 
   :deep(.el-table__row td) {
     padding: 10px 8px;
+    font-size: 18px;
   }
 
   :deep(.el-table__footer td) {
     background: var(--bg-muted);
     font-weight: 700;
     color: var(--ink-primary);
+    font-size: 18px;
     padding: 12px 8px;
+
+    .cell {
+      cursor: default;
+      transition: color 0.15s, background-color 0.15s;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    &:not(:first-child) .cell:not(:empty):hover {
+      background-color: var(--accent-soft);
+      color: var(--accent);
+      cursor: pointer;
+    }
   }
 
   :deep(.el-table-column--selection) {
@@ -995,7 +1189,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 25px;
   font-weight: 600;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
@@ -1035,7 +1229,7 @@ onMounted(() => {
 .developer-name {
   font-weight: 600;
   color: var(--ink-primary);
-  font-size: 13px;
+  font-size: 18px;
 }
 
 .cell-count {

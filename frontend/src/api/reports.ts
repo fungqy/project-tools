@@ -40,6 +40,18 @@ export interface BugListItem {
   tag: string
 }
 
+export interface ReopenBugItem {
+  index: number
+  issue_key: string
+  issue_name: string
+  bug_maker: string
+  reporter: string
+  bug_type: string
+  priority: string
+  bug_reason: string
+  resolution: string
+}
+
 export const reportsApi = {
   getProjects() {
     return api.get<ProjectOption[]>('/reports/projects') as unknown as Promise<ProjectOption[]>
@@ -61,9 +73,9 @@ export const reportsApi = {
     }) as unknown as Promise<BugDetailResponse>
   },
 
-  getBugList(sprintId: number, developer: string, priority: string, tag: string) {
+  getBugList(sprintId: number, priority: string, tag: string, developer?: string) {
     return api.get<BugListItem[]>('/reports/bugs/list', {
-      params: { sprint_id: sprintId, developer, priority, tag },
+      params: { sprint_id: sprintId, developer: developer || '', priority, tag },
     }) as unknown as Promise<BugListItem[]>
   },
 
@@ -71,5 +83,11 @@ export const reportsApi = {
     return api.get<{ avg_dev_seconds: number; avg_test_seconds: number }>('/reports/bugs/avg-time', {
       params: { sprint_id: sprintId },
     }) as unknown as Promise<{ avg_dev_seconds: number; avg_test_seconds: number }>
+  },
+
+  getReopenBugs(sprintId: number) {
+    return api.get<ReopenBugItem[]>('/reports/bugs/reopen', {
+      params: { sprint_id: sprintId },
+    }) as unknown as Promise<ReopenBugItem[]>
   },
 }

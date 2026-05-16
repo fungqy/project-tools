@@ -37,7 +37,7 @@ function formatDateTime(iso: string | null): string {
 const jobMeta: Record<string, { label: string; desc: string }> = {
   story_reminder:   { label: '进度提醒',    desc: '同步 JIRA 故事状态并推送提醒' },
   task_reminder:   { label: '任务提醒',    desc: '检查未完成任务并发送企业微信' },
-  sonar_reminder:  { label: 'SONAR检查',  desc: '执行 GitLab 代码质量扫描' },
+  sonar_reminder:  { label: '代码扫描',  desc: '执行 GitLab 代码质量扫描' },
   report_data:     { label: '报表数据',    desc: '汇总生成质量数据报表' },
 }
 </script>

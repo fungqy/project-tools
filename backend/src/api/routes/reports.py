@@ -253,36 +253,47 @@ async def get_bug_details(
 @router.get("/bugs/list")
 async def get_bug_list(
     sprint_id: int,
-    developer: str,
     priority: str,
     tag: str,
+    developer: str = '',
     current_user: dict = Depends(get_current_user_from_header)
 ):
     """获取故障明细列表"""
     session = get_session()
 
     try:
-        # 构建查询
-        # 处理标签：按-分隔取第一个，去空格，与汇总时一致
-        query = text("""
-            SELECT
-                issue_key,
-                COALESCE(bug_maker, reporter, '其他') as developer,
-                priority,
-                issue_name,
-                bug_reason,
-                'RDM' as source
-            FROM rdm_issue
-            WHERE sprint_id = :sprint_id
-            AND issue_type = '故障'
-            AND COALESCE(bug_maker, reporter, '其他') = :developer
-        """)
-
-        # 先查询所有匹配的记录，然后在Python中过滤priority和tag
-        result = session.execute(query, {
-            "sprint_id": sprint_id,
-            "developer": developer
-        })
+        if developer:
+            query = text("""
+                SELECT
+                    issue_key,
+                    COALESCE(bug_maker, reporter, '其他') as developer,
+                    priority,
+                    issue_name,
+                    bug_reason,
+                    'RDM' as source
+                FROM rdm_issue
+                WHERE sprint_id = :sprint_id
+                AND issue_type = '故障'
+                AND COALESCE(bug_maker, reporter, '其他') = :developer
+            """)
+            result = session.execute(query, {
+                "sprint_id": sprint_id,
+                "developer": developer
+            })
+        else:
+            query = text("""
+                SELECT
+                    issue_key,
+                    COALESCE(bug_maker, reporter, '其他') as developer,
+                    priority,
+                    issue_name,
+                    bug_reason,
+                    'RDM' as source
+                FROM rdm_issue
+                WHERE sprint_id = :sprint_id
+                AND issue_type = '故障'
+            """)
+            result = session.execute(query, {"sprint_id": sprint_id})
         rows = result.fetchall()
 
         # 在Python中过滤并处理标签
@@ -338,5 +349,55 @@ async def get_bug_avg_time(
             "avg_dev_seconds": int(row[0]) if row[0] else 0,
             "avg_test_seconds": int(row[1]) if row[1] else 0,
         }
+    finally:
+        session.close()
+
+
+@router.get("/bugs/reopen")
+async def get_reopen_bugs(
+    sprint_id: int,
+    current_user: dict = Depends(get_current_user_from_header)
+):
+    """获取故障重开列表"""
+    session = get_session()
+
+    try:
+        query = text("""
+            SELECT
+                i.issue_key,
+                i.issue_name,
+                COALESCE(i.bug_maker, i.reporter, '其他') as bug_maker,
+                i.reporter,
+                i.bug_type,
+                i.priority,
+                i.bug_reason,
+                i.resolution
+            FROM rdm_issue i
+            INNER JOIN rdm_bug_changelog c ON i.issue_id = c.bug_id
+            WHERE i.sprint_id = :sprint_id
+            AND i.issue_type = '故障'
+            AND c.change_detail = '待测试 -> 处理中'
+            GROUP BY i.issue_id, i.issue_key, i.issue_name, i.bug_maker,
+                     i.reporter, i.bug_type, i.priority, i.bug_reason, i.resolution
+            ORDER BY i.priority, i.issue_key
+        """)
+        result = session.execute(query, {"sprint_id": sprint_id})
+        rows = result.fetchall()
+
+        items = []
+        for idx, row in enumerate(rows, 1):
+            items.append({
+                "index": idx,
+                "issue_key": row[0] or '',
+                "issue_name": row[1] or '',
+                "bug_maker": row[2] or '',
+                "reporter": row[3] or '',
+                "bug_type": row[4] or '',
+                "priority": row[5] or '',
+                "bug_reason": row[6] or '',
+                "resolution": row[7] or '',
+            })
+
+        return items
     finally:
         session.close()

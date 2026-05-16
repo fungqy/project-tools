@@ -23,9 +23,9 @@ const menuItems = [
   { path: '/dashboard', title: '工作台', icon: Odometer },
   { path: '/projects', title: '项目配置', icon: FolderOpened },
   { path: '/jobs', title: '任务调度', icon: Timer },
-  { path: '/sonar', title: 'SONAR检查', icon: Monitor },
+  { path: '/sonar', title: '代码扫描', icon: Monitor },
   { path: '/reports', title: '质量报表', icon: DataAnalysis },
-  { path: '/screen', title: '数据大屏', icon: FullScreen },
+  { path: '/screen', title: '文档生成', icon: FullScreen },
 ]
 
 function handleMenuClick(path: string) {
