@@ -22,24 +22,27 @@ def get_current_user_from_header(authorization: str = Header(None)):
 
 @router.get("/projects")
 async def list_user_projects(current_user: dict = Depends(get_current_user_from_header)):
-    """获取用户有权限的项目列表，admin用户返回所有项目"""
+    """获取用户有权限且已启用报表数据的项目列表"""
     session = get_session()
 
     try:
         if current_user.get("is_admin"):
             query = text("""
-                SELECT id, project_id, project_name, board_name
-                FROM project_configs
-                ORDER BY project_name
+                SELECT pc.id, pc.project_id, pc.project_name, pc.board_name
+                FROM project_configs pc
+                INNER JOIN project_reminder_settings prs ON pc.id = prs.project_config_id
+                WHERE prs.need_report_data = TRUE
+                ORDER BY pc.project_name
             """)
             result = session.execute(query)
         else:
             user_id = current_user.get("id")
             query = text("""
-                SELECT id, project_id, project_name, board_name
-                FROM project_configs
-                WHERE created_by = :user_id
-                ORDER BY project_name
+                SELECT pc.id, pc.project_id, pc.project_name, pc.board_name
+                FROM project_configs pc
+                INNER JOIN project_reminder_settings prs ON pc.id = prs.project_config_id
+                WHERE pc.created_by = :user_id AND prs.need_report_data = TRUE
+                ORDER BY pc.project_name
             """)
             result = session.execute(query, {"user_id": user_id})
 

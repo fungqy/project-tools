@@ -85,7 +85,7 @@ const activeAlerts = computed(() =>
     <section class="greeting page-enter">
       <div class="greeting-inner">
         <div class="greeting-text">
-          <h1>早安，{{ authStore.user?.username }}</h1>
+          <h1>你好，{{ authStore.user?.username }}</h1>
           <p>今天共有 <strong>{{ todayTasks.length }}</strong> 个任务待执行</p>
         </div>
         <div class="greeting-decoration">
