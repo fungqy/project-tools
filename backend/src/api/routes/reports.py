@@ -313,3 +313,30 @@ async def get_bug_list(
         return filtered_rows
     finally:
         session.close()
+
+
+@router.get("/bugs/avg-time")
+async def get_bug_avg_time(
+    sprint_id: int,
+    current_user: dict = Depends(get_current_user_from_header)
+):
+    """获取故障平均Dev时长和Test时长"""
+    session = get_session()
+
+    try:
+        query = text("""
+            SELECT
+                COALESCE(AVG(dev_seconds), 0) as avg_dev_seconds,
+                COALESCE(AVG(test_seconds), 0) as avg_test_seconds
+            FROM rdm_bug_avgtime_sprint
+            WHERE sprint_id = :sprint_id
+        """)
+        result = session.execute(query, {"sprint_id": sprint_id})
+        row = result.fetchone()
+
+        return {
+            "avg_dev_seconds": int(row[0]) if row[0] else 0,
+            "avg_test_seconds": int(row[1]) if row[1] else 0,
+        }
+    finally:
+        session.close()

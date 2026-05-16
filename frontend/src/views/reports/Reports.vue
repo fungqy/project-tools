@@ -7,6 +7,8 @@ import * as echarts from 'echarts'
 const projects = ref<ProjectOption[]>([])
 const sprints = ref<SprintOption[]>([])
 const metrics = ref<SprintMetrics>({ story_count: 0, bug_count: 0, bug_reopen_count: 0 })
+const avgTime = ref({ avg_dev_seconds: 0, avg_test_seconds: 0 })
+const loadingAvgTime = ref(false)
 
 const selectedProject = ref<number | null>(null)
 const selectedSprint = ref<number | null>(null)
@@ -73,30 +75,28 @@ function renderPriorityChart() {
   chartInstance.setOption({
     tooltip: {
       trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 13 },
       formatter: '{b}: {c} ({d}%)',
     },
-    legend: {
-      orient: 'horizontal',
-      bottom: 0,
-      textStyle: { fontSize: 12, color: '#6B7280' },
-    },
+    legend: { show: false },
     series: [{
       type: 'pie',
-      radius: ['45%', '72%'],
+      radius: ['55%', '80%'],
       center: ['50%', '45%'],
       avoidLabelOverlap: true,
       itemStyle: {
-        borderRadius: 6,
-        borderColor: '#fff',
-        borderWidth: 2,
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
       },
-      label: {
-        show: true,
-        formatter: '{b}\n{c}',
-        fontSize: 12,
-      },
+      label: { show: false },
       emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold' },
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
       },
       data: priorityChartData.value.map(item => ({
         name: item.name,
@@ -107,23 +107,25 @@ function renderPriorityChart() {
     graphic: [{
       type: 'text',
       left: 'center',
-      top: '38%',
+      top: '36%',
       style: {
         text: `${total}`,
-        fontSize: 24,
+        fontSize: 32,
         fontWeight: 700,
-        fill: '#111827',
+        fill: '#1A1A2E',
         textAlign: 'center',
+        fontFamily: 'Sora, sans-serif',
       },
     }, {
       type: 'text',
       left: 'center',
-      top: '48%',
+      top: '50%',
       style: {
         text: '故障总数',
         fontSize: 12,
         fill: '#9CA3AF',
         textAlign: 'center',
+        fontFamily: 'DM Sans, sans-serif',
       },
     }],
   })
@@ -159,30 +161,28 @@ function renderTagChart() {
   tagChartInstance.setOption({
     tooltip: {
       trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 13 },
       formatter: '{b}: {c} ({d}%)',
     },
-    legend: {
-      orient: 'horizontal',
-      bottom: 0,
-      textStyle: { fontSize: 12, color: '#6B7280' },
-    },
+    legend: { show: false },
     series: [{
       type: 'pie',
-      radius: ['45%', '72%'],
+      radius: ['55%', '80%'],
       center: ['50%', '45%'],
       avoidLabelOverlap: true,
       itemStyle: {
-        borderRadius: 6,
-        borderColor: '#fff',
-        borderWidth: 2,
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
       },
-      label: {
-        show: true,
-        formatter: '{b}\n{c}',
-        fontSize: 12,
-      },
+      label: { show: false },
       emphasis: {
-        label: { show: true, fontSize: 14, fontWeight: 'bold' },
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
       },
       data: tagChartData.value.map((item, idx) => ({
         name: item.name,
@@ -193,23 +193,25 @@ function renderTagChart() {
     graphic: [{
       type: 'text',
       left: 'center',
-      top: '38%',
+      top: '36%',
       style: {
         text: `${total}`,
-        fontSize: 24,
+        fontSize: 32,
         fontWeight: 700,
-        fill: '#111827',
+        fill: '#1A1A2E',
         textAlign: 'center',
+        fontFamily: 'Sora, sans-serif',
       },
     }, {
       type: 'text',
       left: 'center',
-      top: '48%',
+      top: '50%',
       style: {
         text: '故障总数',
         fontSize: 12,
         fill: '#9CA3AF',
         textAlign: 'center',
+        fontFamily: 'DM Sans, sans-serif',
       },
     }],
   })
@@ -246,7 +248,8 @@ const bugReopenRate = computed(() => {
 async function loadProjects() {
   loadingProjects.value = true
   try {
-    projects.value = await reportsApi.getProjects()
+    const res = await reportsApi.getProjects()
+    projects.value = res
     if (projects.value.length > 0 && !selectedProject.value) {
       selectedProject.value = projects.value[0].id
     }
@@ -262,7 +265,8 @@ async function loadSprints(projectId: number) {
   selectedSprint.value = null
   sprints.value = []
   try {
-    sprints.value = await reportsApi.getSprints(projectId)
+    const res = await reportsApi.getSprints(projectId)
+    sprints.value = res
     if (sprints.value.length > 0) {
       selectedSprint.value = sprints.value[0].sprint_id
     }
@@ -276,11 +280,32 @@ async function loadSprints(projectId: number) {
 async function loadMetrics(sprintId: number) {
   loadingMetrics.value = true
   try {
-    metrics.value = await reportsApi.getMetrics(sprintId)
+    const res = await reportsApi.getMetrics(sprintId)
+    metrics.value = res
   } catch {
     ElMessage.error('加载指标数据失败')
   } finally {
     loadingMetrics.value = false
+  }
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds <= 0) return '—'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
+async function loadAvgTime(sprintId: number) {
+  loadingAvgTime.value = true
+  try {
+    const res = await reportsApi.getBugAvgTime(sprintId)
+    avgTime.value = res
+  } catch {
+    avgTime.value = { avg_dev_seconds: 0, avg_test_seconds: 0 }
+  } finally {
+    loadingAvgTime.value = false
   }
 }
 
@@ -289,7 +314,8 @@ async function openBugDetail() {
   bugDialogVisible.value = true
   loadingBugDetail.value = true
   try {
-    bugDetail.value = await reportsApi.getBugDetails(selectedSprint.value)
+    const res = await reportsApi.getBugDetails(selectedSprint.value)
+    bugDetail.value = res
     await nextTick()
     renderPriorityChart()
     renderTagChart()
@@ -309,7 +335,8 @@ async function openBugList(developer: string, priority: string, tag: string) {
   bugListDialogVisible.value = true
   loadingBugList.value = true
   try {
-    bugList.value = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
+    const res = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
+    bugList.value = res
   } catch {
     ElMessage.error('加载故障明细失败')
   } finally {
@@ -329,32 +356,9 @@ async function openBugListByRow(developer: string) {
     const allItems: BugListItem[] = []
     for (const priority of allPriorities) {
       for (const tag of allTags) {
-        const items = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
-        allItems.push(...items)
+        const res = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
+        allItems.push(...res)
       }
-    }
-    // 重新编号
-    allItems.forEach((item, idx) => item.index = idx + 1)
-    bugList.value = allItems
-  } catch {
-    ElMessage.error('加载故障明细失败')
-  } finally {
-    loadingBugList.value = false
-  }
-}
-
-// 点击横向合计（某priority+tag组合的所有故障）
-async function openBugListByCol(priority: string, tag: string) {
-  if (!selectedSprint.value || !bugDetail.value) return
-  const allDevelopers = bugDetail.value.developers.map(d => d.developer)
-  bugListTitle.value = `全部开发 - ${priority} - ${tag}`
-  bugListDialogVisible.value = true
-  loadingBugList.value = true
-  try {
-    const allItems: BugListItem[] = []
-    for (const developer of allDevelopers) {
-      const items = await reportsApi.getBugList(selectedSprint.value, developer, priority, tag)
-      allItems.push(...items)
     }
     // 重新编号
     allItems.forEach((item, idx) => item.index = idx + 1)
@@ -388,22 +392,33 @@ function getRowTotal(developer: string): number {
   return total
 }
 
-function getColTotal(priority: string, tag: string): number {
-  if (!bugDetail.value) return 0
-  let total = 0
-  for (const developer of bugDetail.value.developers) {
-    total += getCellCount(developer.developer, priority, tag)
-  }
-  return total
-}
+function getTableSummary({ columns }: { columns: any[]; data: any[] }) {
+  const sums: string[] = []
+  const priorities = bugDetail.value?.priorities ?? []
+  const tags = bugDetail.value?.tags ?? []
+  const colPerPriority = tags.length
 
-function getAllTotal(): number {
-  if (!bugDetail.value) return 0
-  let total = 0
-  for (const developer of bugDetail.value.developers) {
-    total += getRowTotal(developer.developer)
-  }
-  return total
+  columns.forEach((column: any, idx: number) => {
+    if (idx === 0) {
+      sums[idx] = '全部合计'
+      return
+    }
+    if (column.property === undefined) {
+      sums[idx] = ''
+      return
+    }
+    const priorityIdx = idx - 1
+    const pIdx = Math.floor(priorityIdx / colPerPriority)
+    const tIdx = priorityIdx % colPerPriority
+    let total = 0
+    if (bugDetail.value && pIdx < priorities.length && tIdx < tags.length) {
+      for (const dev of bugDetail.value.developers) {
+        total += getCellCount(dev.developer, priorities[pIdx], tags[tIdx])
+      }
+    }
+    sums[idx] = total > 0 ? String(total) : '—'
+  })
+  return sums
 }
 
 watch(selectedProject, (newVal) => {
@@ -415,6 +430,7 @@ watch(selectedProject, (newVal) => {
 watch(selectedSprint, (newVal) => {
   if (newVal) {
     loadMetrics(newVal)
+    loadAvgTime(newVal)
   }
 })
 
@@ -519,6 +535,30 @@ onMounted(() => {
         </div>
         <span class="metric-value">{{ bugRate }}</span>
       </div>
+
+      <div class="metric-card" v-loading="loadingAvgTime" element-loading-text=" " element-loading-background="transparent">
+        <div class="metric-header">
+          <span class="metric-name">故障平均Dev时长</span>
+          <div class="metric-icon dev-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ formatDuration(avgTime.avg_dev_seconds) }}</span>
+      </div>
+
+      <div class="metric-card" v-loading="loadingAvgTime" element-loading-text=" " element-loading-background="transparent">
+        <div class="metric-header">
+          <span class="metric-name">故障平均Test时长</span>
+          <div class="metric-icon test-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ formatDuration(avgTime.avg_test_seconds) }}</span>
+      </div>
     </div>
 
     <!-- Empty state -->
@@ -530,45 +570,104 @@ onMounted(() => {
     <el-dialog
       v-model="bugDialogVisible"
       title="故障分布统计"
-      width="100%"
+      width="95%"
       class="bug-detail-dialog"
       fullscreen
       align-center
       @close="onBugDialogClose"
     >
-      <div v-loading="loadingBugDetail" class="bug-detail-content">
-        <div class="bug-detail-table" v-if="bugDetail">
-          <h3 class="section-title">故障分布明细</h3>
+      <div v-loading="loadingBugDetail" class="bug-detail-content" v-if="bugDetail">
+        <!-- Charts Row -->
+        <div class="charts-row" v-if="priorityChartData.length > 0 || tagChartData.length > 0">
+          <div class="chart-card" v-if="priorityChartData.length > 0">
+            <div class="chart-card-header">
+              <span class="chart-card-title">故障级别分布</span>
+              <div class="chart-legend">
+                <div
+                  v-for="item in priorityChartData"
+                  :key="item.name"
+                  class="legend-item"
+                >
+                  <span class="legend-dot" :style="{ background: PRIORITY_COLORS[item.name] || '#9CA3AF' }"></span>
+                  <span class="legend-label">{{ item.name }}</span>
+                  <span class="legend-value">{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+            <div ref="priorityChartRef" class="chart-container"></div>
+          </div>
+
+          <div class="chart-card" v-if="tagChartData.length > 0">
+            <div class="chart-card-header">
+              <span class="chart-card-title">故障原因分布</span>
+              <div class="chart-legend">
+                <div
+                  v-for="(item, idx) in tagChartData"
+                  :key="item.name"
+                  class="legend-item"
+                >
+                  <span class="legend-dot" :style="{ background: TAG_COLORS[idx % TAG_COLORS.length] }"></span>
+                  <span class="legend-label">{{ item.name }}</span>
+                  <span class="legend-value">{{ item.value }}</span>
+                </div>
+              </div>
+            </div>
+            <div ref="tagChartRef" class="chart-container"></div>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+        <div class="table-section">
+          <h3 class="section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+            故障分布明细
+          </h3>
           <el-table
             :data="bugDetail.developers"
             border
             stripe
             style="width: 100%"
+            table-layout="fixed"
+            :summary-method="getTableSummary"
+            show-summary
+            class="bug-table"
           >
-            <el-table-column prop="developer" label="开发" fixed width="120" />
+            <el-table-column prop="developer" label="开发" fixed width="130">
+              <template #default="{ row }">
+                <div class="developer-cell">
+                  <span class="developer-avatar">{{ row.developer.slice(0, 1) }}</span>
+                  <span class="developer-name">{{ row.developer }}</span>
+                </div>
+              </template>
+            </el-table-column>
 
             <el-table-column
               v-for="priority in bugDetail.priorities"
               :key="priority"
               :label="priority"
               align="center"
+              :label-class-name="'priority-col-header priority-' + priority"
             >
               <el-table-column
                 v-for="tag in bugDetail.tags"
                 :key="tag"
                 :label="tag"
                 align="center"
-                min-width="80"
+                min-width="90"
               >
                 <template #default="{ row }">
-                  <span class="cell-count">
-                    {{ getCellCount(row.developer, priority, tag) }}
+                  <span
+                    class="cell-count"
+                    :class="{ 'has-data': getCellCount(row.developer, priority, tag) > 0 }"
+                    @click="openBugList(row.developer, priority, tag)"
+                  >
+                    {{ getCellCount(row.developer, priority, tag) || '—' }}
                   </span>
                 </template>
               </el-table-column>
             </el-table-column>
 
-            <el-table-column label="合计" fixed="right" width="80" align="center">
+            <el-table-column label="合计" fixed="right" width="90" align="center" class-name="total-col">
               <template #default="{ row }">
                 <span
                   class="cell-total clickable-total"
@@ -579,40 +678,10 @@ onMounted(() => {
               </template>
             </el-table-column>
           </el-table>
-
-          <div class="summary-row">
-            <div class="summary-cell label-cell">合计</div>
-            <div
-              v-for="priority in bugDetail.priorities"
-              :key="priority"
-              class="summary-cell-group"
-            >
-              <div
-                v-for="tag in bugDetail.tags"
-                :key="tag"
-                class="summary-cell clickable-total"
-                :class="{ 'has-data': getColTotal(priority, tag) > 0 }"
-                @click="openBugListByCol(priority, tag)"
-              >
-                <span class="cell-total">{{ getColTotal(priority, tag) }}</span>
-              </div>
-            </div>
-            <div class="summary-cell label-cell">
-              <span class="cell-total">{{ getAllTotal() }}</span>
-            </div>
-          </div>
         </div>
-
-        <div class="bug-detail-chart" v-if="bugDetail && (priorityChartData.length > 0 || tagChartData.length > 0)">
-          <div class="chart-item" v-if="priorityChartData.length > 0">
-            <h4 class="chart-title">故障级别分布</h4>
-            <div ref="priorityChartRef" class="chart-container"></div>
-          </div>
-          <div class="chart-item" v-if="tagChartData.length > 0">
-            <h4 class="chart-title">故障原因分布</h4>
-            <div ref="tagChartRef" class="chart-container"></div>
-          </div>
-        </div>
+      </div>
+      <div v-else-if="!loadingBugDetail" class="empty-dialog">
+        <el-empty description="暂无故障数据" />
       </div>
     </el-dialog>
 
@@ -652,7 +721,7 @@ onMounted(() => {
   max-width: 100%;
 }
 
-// ── Page Header ───────────────────────────────────────────────
+// ── Page Header ──────────────────────────────────────────────
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -753,6 +822,16 @@ onMounted(() => {
     background: #FFF7ED;
     color: #EA580C;
   }
+
+  &.dev-icon {
+    background: #EFF6FF;
+    color: #2563EB;
+  }
+
+  &.test-icon {
+    background: #F0FDF4;
+    color: #16A34A;
+  }
 }
 
 .metric-value-row {
@@ -799,115 +878,229 @@ onMounted(() => {
 }
 
 // ── Bug Detail Dialog ────────────────────────────────────────
-:deep(.bug-detail-dialog .el-dialog__header) {
-  text-align: center;
+// ── Charts Row ───────────────────────────────────────────────
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
-.section-title {
-  font-size: 16px;
+.chart-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--bg-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chart-card-title {
+  font-size: 15px;
   font-weight: 600;
   color: var(--ink-primary);
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-color);
+  font-family: 'Sora', sans-serif;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 
-.bug-detail-content {
+.chart-legend {
   display: flex;
-  gap: 24px;
-  min-height: 400px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
 }
 
-.bug-detail-table {
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  color: var(--ink-secondary);
+  font-weight: 500;
+}
+
+.legend-value {
+  color: var(--ink-primary);
+  font-weight: 700;
+  font-family: 'Sora', sans-serif;
+  font-size: 13px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 260px;
+  min-height: 220px;
+}
+
+// ── Table Section ────────────────────────────────────────────
+.table-section {
   flex: 1;
   min-width: 0;
 }
 
-.bug-detail-chart {
-  flex: 0 0 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  align-items: center;
+.bug-table {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+
+  :deep(.el-table__header th) {
+    background: var(--bg-muted);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 10px 8px;
+  }
+
+  :deep(.el-table__row td) {
+    padding: 10px 8px;
+  }
+
+  :deep(.el-table__footer td) {
+    background: var(--bg-muted);
+    font-weight: 700;
+    color: var(--ink-primary);
+    padding: 12px 8px;
+  }
+
+  :deep(.el-table-column--selection) {
+    .cell {
+      padding: 0;
+    }
+  }
 }
 
-.chart-item {
+.section-title {
   display: flex;
-  flex-direction: column;
   align-items: center;
-}
-
-.chart-title {
+  gap: 8px;
   font-size: 15px;
   font-weight: 600;
   color: var(--ink-primary);
-  margin: 0 0 12px;
+  font-family: 'Sora', sans-serif;
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bg-muted);
+
+  svg {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
 }
 
-.chart-container {
-  width: 360px;
-  height: 360px;
+.developer-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 4px;
+}
+
+.developer-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: 'Sora', sans-serif;
+  text-transform: uppercase;
+}
+
+.developer-name {
+  font-weight: 600;
+  color: var(--ink-primary);
+  font-size: 13px;
 }
 
 .cell-count {
   font-weight: 500;
-  color: var(--ink-primary);
+  color: var(--ink-tertiary);
+  transition: color 0.15s, background-color 0.15s;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: default;
+  display: inline-block;
+
+  &.has-data {
+    color: var(--ink-primary);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--accent-soft);
+      color: var(--accent);
+    }
+  }
 }
 
 .cell-total {
   font-weight: 700;
   color: var(--accent);
+  font-family: 'Sora', sans-serif;
 }
 
 .clickable-total {
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 4px;
   transition: background-color 0.2s;
   display: inline-block;
 
   &:hover {
-    background-color: var(--bg-muted);
-  }
-
-  &.has-data {
-    color: var(--accent);
-    font-weight: 600;
+    background-color: var(--accent-soft);
   }
 }
 
-// ── Summary Row ───────────────────────────────────────────────
-.summary-row {
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-color);
-  border-top: none;
-  background: var(--bg-surface);
-  font-size: 13px;
-}
-
-.summary-cell-group {
-  display: flex;
-  flex: 1;
-}
-
-.summary-cell {
-  flex: 1;
-  padding: 12px 8px;
-  text-align: center;
-  border-right: 1px solid var(--border-color);
+.empty-dialog {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 400px;
+}
 
-  &:last-child {
-    border-right: none;
+// ── Bug List Dialog ─────────────────────────────────────────
+.bug-list-dialog {
+  :deep(.el-dialog__header) {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--bg-muted);
+    margin-right: 0;
   }
 
-  &.label-cell {
+  :deep(.el-dialog__title) {
+    font-family: 'Sora', sans-serif;
     font-weight: 600;
+    font-size: 15px;
     color: var(--ink-primary);
-    flex: 0 0 120px;
+  }
+
+  :deep(.el-table__row:hover td) {
+    background-color: var(--accent-soft) !important;
   }
 }
 </style>

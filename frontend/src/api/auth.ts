@@ -21,16 +21,16 @@ export interface LoginResponse {
 
 export const authApi = {
   login(data: LoginRequest) {
-    return api.post<LoginResponse>('/auth/login', data)
+    return api.post<LoginResponse>('/auth/login', data) as unknown as Promise<LoginResponse>
   },
 
   getCurrentUser() {
-    return api.get<UserInfo>('/auth/me')
+    return api.get<UserInfo>('/auth/me') as unknown as Promise<UserInfo>
   },
 
   register(username: string, password: string) {
     return api.post<UserInfo>('/auth/register', null, {
       params: { username, password },
-    })
+    }) as unknown as Promise<UserInfo>
   },
 }

@@ -66,10 +66,9 @@ router.beforeEach(async (to, _from, next) => {
         }
         // 验证 token 有效性
         try {
-            const user = await authApi.getCurrentUser();
-            // 更新 store 中的用户信息
+            const res = await authApi.getCurrentUser();
             const authStore = useAuthStore();
-            authStore.user = user;
+            authStore.user = res;
             next();
         } catch {
             // token 无效，清除本地存储并跳转登录

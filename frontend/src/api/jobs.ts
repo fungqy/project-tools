@@ -22,22 +22,22 @@ export interface TodayTask {
 
 export const jobApi = {
     getJobs() {
-        return api.get<JobsResponse>("/jobs");
+        return api.get<JobsResponse>("/jobs") as unknown as Promise<JobsResponse>
     },
 
     getTodayTasks() {
-        return api.get<TodayTask[]>("/scheduler/today-tasks");
+        return api.get<TodayTask[]>("/scheduler/today-tasks") as unknown as Promise<TodayTask[]>
     },
 
     triggerJob(jobId: string) {
-        return api.post(`/jobs/${jobId}/trigger`);
+        return api.post(`/jobs/${jobId}/trigger`)
     },
 
     triggerStoryReminder() {
-        return api.post("/jobs/story-reminder/trigger");
+        return api.post("/jobs/story-reminder/trigger")
     },
 
     triggerTaskReminder() {
-        return api.post("/jobs/task-reminder/trigger");
+        return api.post("/jobs/task-reminder/trigger")
     },
 };

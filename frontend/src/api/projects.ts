@@ -59,15 +59,14 @@ export interface ProjectFormData {
 
 export const projectApi = {
     getList() {
-        return api.get<ProjectConfig[]>("/projects");
+        return api.get<ProjectConfig[]>("/projects") as unknown as Promise<ProjectConfig[]>
     },
 
     getById(id: number) {
-        return api.get<ProjectConfig>(`/projects/${id}`);
+        return api.get<ProjectConfig>(`/projects/${id}`) as unknown as Promise<ProjectConfig>
     },
 
     create(data: ProjectFormData) {
-        // 转换表单数据为API格式
         const {
             need_story_remind,
             need_task_remind,
@@ -90,11 +89,10 @@ export const projectApi = {
             sonar_remind_time: sonar_remind_time || null,
             report_data_time: report_data_time || null,
         };
-        return api.post<ProjectConfig>("/projects", payload);
+        return api.post<ProjectConfig>("/projects", payload) as unknown as Promise<ProjectConfig>
     },
 
     update(id: number, data: ProjectFormData) {
-        // 转换表单数据为API格式
         const {
             need_story_remind,
             need_task_remind,
@@ -117,10 +115,10 @@ export const projectApi = {
             sonar_remind_time: sonar_remind_time || null,
             report_data_time: report_data_time || null,
         };
-        return api.put<ProjectConfig>(`/projects/${id}`, payload);
+        return api.put<ProjectConfig>(`/projects/${id}`, payload) as unknown as Promise<ProjectConfig>
     },
 
     delete(id: number) {
-        return api.delete(`/projects/${id}`);
+        return api.delete(`/projects/${id}`)
     },
 };

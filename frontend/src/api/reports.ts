@@ -42,28 +42,34 @@ export interface BugListItem {
 
 export const reportsApi = {
   getProjects() {
-    return api.get<ProjectOption[]>('/reports/projects')
+    return api.get<ProjectOption[]>('/reports/projects') as unknown as Promise<ProjectOption[]>
   },
 
   getSprints(projectId: number) {
-    return api.get<SprintOption[]>(`/reports/sprints/${projectId}`)
+    return api.get<SprintOption[]>(`/reports/sprints/${projectId}`) as unknown as Promise<SprintOption[]>
   },
 
   getMetrics(sprintId: number) {
     return api.get<SprintMetrics>('/reports/metrics', {
       params: { sprint_id: sprintId },
-    })
+    }) as unknown as Promise<SprintMetrics>
   },
 
   getBugDetails(sprintId: number) {
     return api.get<BugDetailResponse>('/reports/bugs/detail', {
       params: { sprint_id: sprintId },
-    })
+    }) as unknown as Promise<BugDetailResponse>
   },
 
   getBugList(sprintId: number, developer: string, priority: string, tag: string) {
     return api.get<BugListItem[]>('/reports/bugs/list', {
       params: { sprint_id: sprintId, developer, priority, tag },
-    })
+    }) as unknown as Promise<BugListItem[]>
+  },
+
+  getBugAvgTime(sprintId: number) {
+    return api.get<{ avg_dev_seconds: number; avg_test_seconds: number }>('/reports/bugs/avg-time', {
+      params: { sprint_id: sprintId },
+    }) as unknown as Promise<{ avg_dev_seconds: number; avg_test_seconds: number }>
   },
 }

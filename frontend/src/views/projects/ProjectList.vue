@@ -9,7 +9,26 @@ const projects = ref<ProjectConfig[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
-const formData = ref<ProjectFormData>({})
+const formData = ref<ProjectFormData>({
+  board_id: '',
+  board_name: '',
+  project_id: '',
+  project_name: '',
+  gitlab_group_key: '',
+  need_story_remind: false,
+  need_task_remind: false,
+  need_sonar_scan_remind: false,
+  need_report_data: false,
+  story_remind_time: '',
+  task_remind_time: '',
+  sonar_remind_time: '',
+  report_data_time: '',
+  sonar_key_prefix: '',
+  sonar_scan_remind_default_person: '',
+  robot_key: '',
+  jira_user: '',
+  jira_token: ''
+})
 
 const isAdmin = computed(() => authStore.user?.is_admin)
 const currentUserId = computed(() => authStore.user?.id)
@@ -62,7 +81,27 @@ function openAddDialog() {
 
 function openEditDialog(row: ProjectConfig) {
   isEdit.value = true
-  formData.value = { ...row }
+  formData.value = {
+    id: row.id,
+    board_id: row.board_id,
+    board_name: row.board_name,
+    project_id: row.project_id,
+    project_name: row.project_name,
+    gitlab_group_key: row.gitlab_group_key,
+    sonar_key_prefix: row.sonar_key_prefix,
+    sonar_scan_remind_default_person: row.sonar_scan_remind_default_person,
+    robot_key: row.robot_key,
+    jira_user: row.jira_user,
+    jira_token: row.jira_token ?? '',
+    need_story_remind: row.need_story_remind,
+    need_task_remind: row.need_task_remind,
+    need_sonar_scan_remind: row.need_sonar_scan_remind,
+    need_report_data: row.need_report_data,
+    story_remind_time: row.reminder_settings?.story_remind_time ?? '',
+    task_remind_time: row.reminder_settings?.task_remind_time ?? '',
+    sonar_remind_time: row.reminder_settings?.sonar_remind_time ?? '',
+    report_data_time: row.reminder_settings?.report_data_time ?? '',
+  }
   dialogVisible.value = true
 }
 
@@ -77,7 +116,7 @@ async function handleSave() {
       await projectApi.update(formData.value.id!, formData.value)
       ElMessage.success('更新成功')
     } else {
-      await projectApi.create(formData.value as ProjectConfig)
+      await projectApi.create(formData.value)
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
