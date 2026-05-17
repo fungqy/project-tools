@@ -32,6 +32,13 @@ const reopenDialogVisible = ref(false)
 const reopenBugs = ref<ReopenBugItem[]>([])
 const loadingReopenBugs = ref(false)
 
+// 分布明细表格全屏
+const bugDetailFullscreen = ref(false)
+
+function toggleBugDetailFullscreen() {
+  bugDetailFullscreen.value = !bugDetailFullscreen.value
+}
+
 const priorityChartRef = ref<HTMLElement | null>(null)
 const tagChartRef = ref<HTMLElement | null>(null)
 const developerChartRef = ref<HTMLElement | null>(null)
@@ -728,19 +735,40 @@ onBeforeUnmount(() => {
 
         <!-- Table Section -->
         <div class="table-section">
-          <h3 class="section-title">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
-            分布明细
-          </h3>
-          <el-table
-            :data="bugDetail.developers"
-            border
-            stripe
-            style="width: 100%"
-            table-layout="fixed"
-            show-summary
-            class="bug-table"
-          >
+          <div v-if="bugDetailFullscreen" class="fullscreen-header">
+            <h3 class="fullscreen-title">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+              分布明细
+            </h3>
+            <el-button
+              icon="Close"
+              circle
+              size="small"
+              @click="toggleBugDetailFullscreen"
+            />
+          </div>
+          <div :class="['table-container', { 'table-container--fullscreen': bugDetailFullscreen }]">
+            <div v-if="!bugDetailFullscreen" class="section-title-row">
+              <h3 class="section-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                分布明细
+              </h3>
+              <el-button
+                icon="FullScreen"
+                circle
+                size="small"
+                @click="toggleBugDetailFullscreen"
+              />
+            </div>
+            <el-table
+              :data="bugDetail.developers"
+              border
+              stripe
+              style="width: 100%"
+              table-layout="fixed"
+              show-summary
+              :class="['bug-table', { 'bug-table--fullscreen': bugDetailFullscreen }]"
+            >
             <el-table-column prop="developer" label="开发" fixed width="160">
               <template #default="{ row }">
                 <div class="developer-cell">
@@ -802,6 +830,7 @@ onBeforeUnmount(() => {
               </template>
             </el-table-column>
           </el-table>
+          </div>
         </div>
       </div>
       <div v-else-if="!loadingBugDetail" class="empty-dialog">
@@ -813,7 +842,7 @@ onBeforeUnmount(() => {
     <el-dialog
       v-model="bugListDialogVisible"
       :title="bugListTitle"
-      width="900px"
+      width="1300px"
       class="bug-list-dialog"
     >
       <div v-loading="loadingBugList">
@@ -824,10 +853,10 @@ onBeforeUnmount(() => {
           stripe
           style="width: 100%"
         >
-          <el-table-column prop="index" label="序号" width="60" align="center" />
-          <el-table-column prop="issue_key" label="编号" width="120" />
+          <el-table-column prop="index" label="序号" width="80" align="center" />
+          <el-table-column prop="issue_key" label="编号" width="130" />
+          <el-table-column prop="issue_name" label="名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="developer" label="开发" width="100" />
-          <el-table-column prop="issue_name" label="名称" min-width="200" show-overflow-tooltip />
           <el-table-column prop="reason_analysis" label="原因及分析" width="120" />
           <el-table-column prop="priority" label="级别" width="80" align="center" />
           <el-table-column prop="tag" label="标签" width="100" align="center" />
@@ -1178,6 +1207,85 @@ onBeforeUnmount(() => {
   svg {
     color: var(--accent);
     flex-shrink: 0;
+  }
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bg-muted);
+
+  .section-title {
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+}
+
+.fullscreen-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  padding: 12px 20px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--bg-muted);
+  box-shadow: var(--shadow-sm);
+}
+
+.fullscreen-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  font-family: 'Sora', sans-serif;
+  margin: 0;
+
+  svg {
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+}
+
+.table-container--fullscreen {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: var(--bg-base);
+  padding: 20px;
+  overflow: auto;
+
+  .bug-table {
+    height: 100%;
+  }
+}
+
+.bug-table--fullscreen {
+  :deep(.el-table__header th) {
+    font-size: 16px;
+    padding: 8px;
+  }
+
+  :deep(.el-table__row td) {
+    font-size: 16px;
+    padding: 8px;
+  }
+
+  :deep(.el-table__footer td) {
+    font-size: 16px;
+    padding: 10px 8px;
   }
 }
 
