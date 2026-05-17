@@ -19,6 +19,28 @@ def get_db_config():
     }
 
 
+def validate_db_config(config):
+    """验证数据库配置是否完整"""
+    required_fields = ["host", "user", "password", "database"]
+    missing_fields = [field for field in required_fields if not config.get(field)]
+    if missing_fields:
+        raise ValueError(
+            f"数据库配置不完整，缺少以下必填字段: {', '.join(missing_fields)}\n"
+            f"请在 backend/.env 文件中配置以下环境变量:\n"
+            f"  DB_HOST=数据库主机地址\n"
+            f"  DB_PORT=数据库端口(默认3306)\n"
+            f"  DB_USER=数据库用户名\n"
+            f"  DB_PASSWORD=数据库密码\n"
+            f"  DB_NAME=数据库名称\n"
+            f"示例:.env文件内容:\n"
+            f"  DB_HOST=localhost\n"
+            f"  DB_PORT=3306\n"
+            f"  DB_USER=your_user\n"
+            f"  DB_PASSWORD=your_password\n"
+            f"  DB_NAME=your_database"
+        )
+
+
 def get_engine():
     """创建数据库引擎"""
     config = get_db_config()
