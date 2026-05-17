@@ -1,0 +1,68 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_HOST=http://localhost:8080
+    container_name: project-tools-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - project-tools-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: project-tools-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=rdmuser
+      - DB_PASSWORD=rdmpass123
+      - DB_NAME=rdmdb
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - project-tools-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: project-tools-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass123
+      - MYSQL_DATABASE=rdmdb
+      - MYSQL_USER=rdmuser
+      - MYSQL_PASSWORD=rdmpass123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/sql:/docker-entrypoint-initdb.d
+    networks:
+      - project-tools-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  project-tools-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
