@@ -3,6 +3,8 @@
 -- 数据库: rdmdb
 -- ================================================
 
+use rdmdb;
+
 -- 系统用户表
 CREATE TABLE IF NOT EXISTS sys_users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
@@ -257,7 +259,7 @@ CREATE TABLE `rdm_bug_label_class` (
   `class_id` int DEFAULT NULL COMMENT 'Bug标签分类ID',
   `class_name` varchar(50) DEFAULT NULL COMMENT 'Bug标签分类名称',
   `label` varchar(512) DEFAULT NULL COMMENT 'Bug标签'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Bug标签分类';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Bug标签分类';
 
 
 -- rdmdb.rdm_bug_changelog definition
@@ -282,7 +284,7 @@ CREATE TABLE `rdm_bug_changelog` (
   KEY `idx_sprint` (`sprint_id`),
   KEY `idx_bug` (`bug_id`),
   KEY `idx_key` (`bug_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='bug变更记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='bug变更记录';
 
 
 -- rdmdb.rdm_story_changelog definition
@@ -297,4 +299,4 @@ CREATE TABLE `rdm_story_changelog` (
   `change_detail` varchar(512) DEFAULT NULL COMMENT '变更详情',
   KEY `idx_story_id` (`story_id`),
   KEY `idx_story_key` (`story_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='故事变更记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='故事变更记录';
