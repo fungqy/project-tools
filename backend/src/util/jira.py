@@ -225,7 +225,6 @@ class ProjectRemindConfig(BaseProject):
     story_remind_time: str = ""  # 故事提醒时间
     task_remind_time: str = ""  # 任务提醒时间
     sonar_remind_time: str = ""  # Sonar扫描提醒时间
-    report_data_time: str = ""  # 报表数据生成时间
 
 
 class ProjectUtil:

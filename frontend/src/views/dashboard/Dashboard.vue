@@ -31,7 +31,6 @@ onMounted(async () => {
 const taskTypeMap: Record<string, string> = {
   story_reminder: '进度提醒',
   task_reminder: '任务提醒',
-  sonar_reminder: 'Sonar扫描',
   report_data: '报表数据',
 }
 
@@ -212,7 +211,6 @@ const activeAlerts = computed(() =>
             <template #default="{ row }">
               <span v-if="row.need_story_remind" class="reminder-active">
                 {{ row.story_remind_time }}
-                <span class="reminder-time">提醒</span>
               </span>
               <span v-else class="reminder-off">—</span>
             </template>
@@ -221,7 +219,6 @@ const activeAlerts = computed(() =>
             <template #default="{ row }">
               <span v-if="row.need_task_remind" class="reminder-active">
                 {{ row.task_remind_time }}
-                <span class="reminder-time">提醒</span>
               </span>
               <span v-else class="reminder-off">—</span>
             </template>
@@ -230,16 +227,6 @@ const activeAlerts = computed(() =>
             <template #default="{ row }">
               <span v-if="row.need_sonar_scan_remind" class="reminder-active">
                 {{ row.sonar_remind_time }}
-                <span class="reminder-time">提醒</span>
-              </span>
-              <span v-else class="reminder-off">—</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="报表" width="90" align="center">
-            <template #default="{ row }">
-              <span v-if="row.need_report_data" class="reminder-active">
-                {{ row.report_data_time }}
-                <span class="reminder-time">生成</span>
               </span>
               <span v-else class="reminder-off">—</span>
             </template>
@@ -493,14 +480,6 @@ const activeAlerts = computed(() =>
   font-weight: 500;
   color: var(--ink-primary);
   font-variant-numeric: tabular-nums;
-}
-
-.reminder-time {
-  font-size: 11px;
-  color: var(--accent);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .reminder-off {

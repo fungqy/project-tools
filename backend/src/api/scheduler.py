@@ -14,7 +14,7 @@ from util.jira import AuthConfig, ProjectRemindConfig, set_default_auth
 from util.qywx import post
 
 # 配置日志
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("Scheduler")
 
 # 任务类型常量
 TASK_TYPE_STORY = "story_reminder"
@@ -112,7 +112,6 @@ def get_project_configs():
             story_time = getattr(setting, "story_remind_time", None) or ""
             task_time = getattr(setting, "task_remind_time", None) or ""
             sonar_time = getattr(setting, "sonar_remind_time", None) or ""
-            report_time = getattr(setting, "report_data_time", None) or ""
 
             result.append(
                 ProjectRemindConfig(
@@ -134,7 +133,6 @@ def get_project_configs():
                     story_remind_time=story_time,
                     task_remind_time=task_time,
                     sonar_remind_time=sonar_time,
-                    report_data_time=report_time,
                 )
             )
         return result
@@ -245,7 +243,7 @@ def get_today_tasks_status():
                     settings.need_sonar_scan_remind,
                     settings.sonar_remind_time,
                 ),
-                ("report_data", settings.need_report_data, settings.report_data_time),
+                ("report_data", settings.need_report_data),
             ]
 
             for task_type, needed, remind_time in tasks:
@@ -358,29 +356,23 @@ def run_sonar_scan_reminder(
 
 def run_report_data():
     """执行报表数据生成"""
-    from task.report_rdm_data import process
+    from task import process_rdm_data
 
     now = datetime.now()
 
     # 获取报表生成配置的时间
     project_configs = get_project_configs()
-    report_time = None
     for config in project_configs:
-        if config.need_report_data and config.report_data_time:
-            report_time = config.report_data_time
+        if not config.need_report_data:
             break
 
-    if not report_time:
-        logger.info("未配置报表生成时间，跳过")
-        return
-
-    if not check_time_match(report_time, now):
+    if not check_time_match("23:30", now):
         logger.info(f"当前时间不匹配报表生成时间({report_time})，跳过")
         return
 
-    logger.info("开始执行报表数据生成...")
+    logger.info("开始生成报表数据...")
     try:
-        process()
+        process_rdm_data()
         logger.info("报表数据生成完成")
     except Exception as e:
         logger.error(f"报表数据生成失败: {e}")

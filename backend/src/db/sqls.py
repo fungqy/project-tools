@@ -1,5 +1,5 @@
 # 生成故事完成时长表数据
-STORIES_COMPLETE_DURATION_SQL = """
+RDM_STORY_DURATION_SQL = """
 insert into rdm_story_duration
 select
     t3.project_id,
@@ -105,7 +105,7 @@ on
 """
 
 # 生成故障完成时长表数据
-BUGS_COMPLETE_DURATION_SQL = """
+RDM_BUG_DURATION_SQL = """
 insert into rdm_bug_duration
 WITH
 t_bugs AS (

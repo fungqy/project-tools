@@ -22,7 +22,6 @@ const formData = ref<ProjectFormData>({
   story_remind_time: '',
   task_remind_time: '',
   sonar_remind_time: '',
-  report_data_time: '',
   sonar_key_prefix: '',
   sonar_scan_remind_default_person: '',
   robot_key: '',
@@ -69,7 +68,6 @@ function openAddDialog() {
     story_remind_time: '',
     task_remind_time: '',
     sonar_remind_time: '',
-    report_data_time: '',
     sonar_key_prefix: '',
     sonar_scan_remind_default_person: '',
     robot_key: '',
@@ -100,7 +98,6 @@ function openEditDialog(row: ProjectConfig) {
     story_remind_time: row.reminder_settings?.story_remind_time ?? '',
     task_remind_time: row.reminder_settings?.task_remind_time ?? '',
     sonar_remind_time: row.reminder_settings?.sonar_remind_time ?? '',
-    report_data_time: row.reminder_settings?.report_data_time ?? '',
   }
   dialogVisible.value = true
 }
@@ -142,25 +139,22 @@ async function handleDelete(row: ProjectConfig) {
 
 <template>
   <div class="projects-page">
-    <!-- Page header -->
-    <div class="page-header page-enter">
-      <div class="page-header-left">
-        <p></p>
-      </div>
-      <el-button v-if="isAdmin" type="primary" class="add-btn" @click="openAddDialog">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        新建项目
-      </el-button>
-    </div>
-
     <!-- Projects table card -->
     <div class="projects-card page-enter" style="animation-delay: 0.06s">
       <el-table :data="projects" v-loading="loading" stripe class="projects-table">
-        <el-table-column prop="project_name" label="项目名称" min-width="150" />
+        <template #header>
+          <div class="table-header">
+            <span>项目列表</span>
+            <el-button v-if="isAdmin" type="primary" class="add-btn-icon" @click="openAddDialog">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </el-button>
+          </div>
+        </template>
+        <el-table-column prop="project_name" label="项目名称" min-width="120" />
         <el-table-column prop="board_name" label="JIRA 面板" min-width="120" />
-        <el-table-column prop="gitlab_group_key" label="GitLab Group" width="130" />
+        <el-table-column prop="gitlab_group_key" label="GitLab Group" width="160" />
         <el-table-column label="进度提醒" width="120" align="center">
           <template #default="{ row }">
             <span v-if="row.need_story_remind" class="reminder-on">
@@ -188,12 +182,12 @@ async function handleDelete(row: ProjectConfig) {
         <el-table-column label="报表数据" width="120" align="center">
           <template #default="{ row }">
             <span v-if="row.need_report_data" class="reminder-on">
-              {{ row.report_data_time }}
+              已启用
             </span>
             <span v-else class="reminder-off">未启用</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" align="center">
+        <el-table-column label="操作" width="180" align="center">
           <template #default="{ row }">
             <el-button v-if="canEditProject(row)" type="primary" link @click="openEditDialog(row)">编辑</el-button>
             <el-button v-if="canDeleteProject(row)" type="danger" link @click="handleDelete(row)">删除</el-button>
@@ -286,7 +280,6 @@ async function handleDelete(row: ProjectConfig) {
                 <el-switch v-model="formData.need_report_data" />
                 <span>报表生成</span>
               </div>
-              <el-time-select v-if="formData.need_report_data" v-model="formData.report_data_time" :step="'00:10'" :start="'00:00'" :end="'23:50'" style="width: 100%" />
             </div>
           </div>
         </div>
@@ -304,34 +297,23 @@ async function handleDelete(row: ProjectConfig) {
   max-width: 100%;
 }
 
-// ── Page Header ──────────────────────────────────────────────
-.page-header {
+.table-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 24px;
-
-  &-left {
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--ink-primary);
-      margin-bottom: 4px;
-      letter-spacing: -0.02em;
-    }
-
-    p {
-      font-size: 13px;
-      color: var(--ink-tertiary);
-    }
-  }
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-primary);
 }
 
-.add-btn {
+.add-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 600;
+  justify-content: center;
 }
 
 // ── Projects Card ─────────────────────────────────────────────

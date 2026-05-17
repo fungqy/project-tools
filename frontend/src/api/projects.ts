@@ -60,7 +60,6 @@ export interface ReminderSettings {
   story_remind_time?: string
   task_remind_time?: string
   sonar_remind_time?: string
-  report_data_time?: string
 }
 
 export interface ProjectConfig {
@@ -86,7 +85,6 @@ export interface ProjectConfig {
   story_remind_time?: string
   task_remind_time?: string
   sonar_remind_time?: string
-  report_data_time?: string
   reminder_settings?: ReminderSettings
 }
 
@@ -109,7 +107,6 @@ export interface ProjectFormData {
   story_remind_time: string
   task_remind_time: string
   sonar_remind_time: string
-  report_data_time: string
 }
 
 // [修复#8] 封装类型安全的请求函数，消除所有 as unknown as T 双重断言

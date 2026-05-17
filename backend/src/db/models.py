@@ -182,7 +182,6 @@ class ProjectConfig(Base):
             data["story_remind_time"] = reminder_data["story_remind_time"]
             data["task_remind_time"] = reminder_data["task_remind_time"]
             data["sonar_remind_time"] = reminder_data["sonar_remind_time"]
-            data["report_data_time"] = reminder_data["report_data_time"]
             data["reminder_settings"] = reminder_data
         return data
 
@@ -207,7 +206,6 @@ class ProjectReminderSettings(Base):
     story_remind_time = Column(String(10), nullable=True)  # 故事提醒时间
     task_remind_time = Column(String(10), nullable=True)  # 任务提醒时间
     sonar_remind_time = Column(String(10), nullable=True)  # Sonar扫描提醒时间
-    report_data_time = Column(String(10), nullable=True)  # 报表数据生成时间
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -225,7 +223,6 @@ class ProjectReminderSettings(Base):
             "story_remind_time": self.story_remind_time,
             "task_remind_time": self.task_remind_time,
             "sonar_remind_time": self.sonar_remind_time,
-            "report_data_time": self.report_data_time,
             "created_at": self.created_at.isoformat()
             if self.created_at is not None
             else None,

@@ -19,7 +19,6 @@ class ProjectReminderSettingsCreate(BaseModel):
     story_remind_time: Optional[str] = None
     task_remind_time: Optional[str] = None
     sonar_remind_time: Optional[str] = None
-    report_data_time: Optional[str] = None
 
 
 class ProjectConfigCreate(BaseModel):
@@ -60,7 +59,6 @@ class ProjectReminderSettingsResponse(BaseModel):
     story_remind_time: Optional[str] = None
     task_remind_time: Optional[str] = None
     sonar_remind_time: Optional[str] = None
-    report_data_time: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -83,7 +81,6 @@ class ProjectConfigResponse(BaseModel):
     story_remind_time: Optional[str] = None
     task_remind_time: Optional[str] = None
     sonar_remind_time: Optional[str] = None
-    report_data_time: Optional[str] = None
     created_by: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -216,7 +213,6 @@ async def create_project(
                 story_remind_time=getattr(rs, "story_remind_time", None),
                 task_remind_time=getattr(rs, "task_remind_time", None),
                 sonar_remind_time=getattr(rs, "sonar_remind_time", None),
-                report_data_time=getattr(rs, "report_data_time", None),
             )
             session.add(reminder_settings)
 
