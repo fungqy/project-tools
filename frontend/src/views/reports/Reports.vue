@@ -328,6 +328,18 @@ const bugReopenRate = computed(() => {
   return `${rate}%`
 })
 
+const summaryRow = computed(() => {
+  if (!bugDetail.value) return []
+  const row: Record<string, number> = { developer: '合计' }
+  for (const priority of bugDetail.value.priorities) {
+    for (const tag of bugDetail.value.tags) {
+      row[`${priority}-${tag}`] = getTableColumnTotal(priority, tag)
+    }
+  }
+  row['total'] = bugDetail.value.developers.reduce((sum, d) => sum + d.total, 0)
+  return [row]
+})
+
 async function loadProjects() {
   loadingProjects.value = true
   try {
@@ -493,6 +505,37 @@ async function openBugListBySummary(priority: string, tag: string) {
 // [修复#2] 使用 data 属性替代 DOM 索引计算，解耦合计行点击逻辑
 function onSummaryCellClick(priority: string, tag: string) {
   openBugListBySummary(priority, tag)
+}
+
+// 打开所有故障数据（总计行点击）
+async function openBugListAll() {
+  if (!selectedSprint.value || !bugDetail.value) return
+  const allTags = bugDetail.value.tags
+  const allPriorities = bugDetail.value.priorities
+  const allDevelopers = bugDetail.value.developers.map(d => d.developer)
+  bugListTitle.value = `全部故障`
+  bugListDialogVisible.value = true
+  loadingBugList.value = true
+  try {
+    const promises = []
+    for (const developer of allDevelopers) {
+      for (const priority of allPriorities) {
+        for (const tag of allTags) {
+          promises.push(
+            reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
+          )
+        }
+      }
+    }
+    const results = await Promise.all(promises)
+    const allItems: BugListItem[] = results.flat()
+    allItems.forEach((item, idx) => item.index = idx + 1)
+    bugList.value = allItems
+  } catch {
+    ElMessage.error('加载故障明细失败')
+  } finally {
+    loadingBugList.value = false
+  }
 }
 
 function getCellCount(developer: string, priority: string, tag: string): number {
@@ -766,7 +809,6 @@ onBeforeUnmount(() => {
               stripe
               style="width: 100%"
               table-layout="fixed"
-              show-summary
               :class="['bug-table', { 'bug-table--fullscreen': bugDetailFullscreen }]"
             >
             <el-table-column prop="developer" label="开发" fixed width="160">
@@ -797,18 +839,9 @@ onBeforeUnmount(() => {
                   <span
                     class="cell-count"
                     :class="{ 'has-data': getCellCount(row.developer, priority, tag) > 0 }"
-                    @click="openBugList(row.developer, priority, tag)"
+                    @click="getCellCount(row.developer, priority, tag) > 0 && openBugList(row.developer, priority, tag)"
                   >
                     {{ getCellCount(row.developer, priority, tag) || '—' }}
-                  </span>
-                </template>
-                <!-- [修复#2] 合计行单元格直接绑定 priority/tag，不再依赖 DOM 索引 -->
-                <template #summary>
-                  <span
-                    class="cell-summary clickable-total"
-                    @click="onSummaryCellClick(priority, tag)"
-                  >
-                    {{ getTableColumnTotal(priority, tag) || '—' }}
                   </span>
                 </template>
               </el-table-column>
@@ -823,13 +856,58 @@ onBeforeUnmount(() => {
                   {{ row.total }}
                 </span>
               </template>
-              <template #summary>
-                <span class="cell-total">
-                  {{ bugDetail.developers.reduce((sum, d) => sum + d.total, 0) || '—' }}
+            </el-table-column>
+            </el-table>
+
+            <!-- 自定义合计行 -->
+            <el-table
+              :data="summaryRow"
+              border
+              stripe
+              style="width: 100%; margin-top: 0;"
+              table-layout="fixed"
+              :show-header="false"
+              :class="['bug-table', 'summary-table', { 'bug-table--fullscreen': bugDetailFullscreen }]"
+            >
+            <el-table-column prop="developer" fixed width="160" class-name="summary-cell">
+              <template #default>
+                <span class="cell-summary">合计</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              v-for="priority in bugDetail.priorities"
+              :key="'summary-' + priority"
+              :label="priority"
+              align="center"
+            >
+              <el-table-column
+                v-for="tag in bugDetail.tags"
+                :key="'summary-' + priority + '-' + tag"
+                :label="tag"
+                align="center"
+                min-width="90"
+              >
+                <template #default="{ row }">
+                  <span
+                    class="cell-summary"
+                    :class="{ 'clickable-total': row[`${priority}-${tag}`] > 0 }"
+                    @click="row[`${priority}-${tag}`] > 0 && onSummaryCellClick(priority, tag)"
+                  >
+                    {{ row[`${priority}-${tag}`] || '—' }}
+                  </span>
+                </template>
+              </el-table-column>
+            </el-table-column>
+
+            <el-table-column fixed="right" width="90" align="center" class-name="total-col">
+              <template #default="{ row }">
+                <span class="cell-summary clickable-total" @click="openBugListAll()">
+                  {{ row.total }}
                 </span>
               </template>
             </el-table-column>
-          </el-table>
+            </el-table>
           </div>
         </div>
       </div>
@@ -1089,7 +1167,7 @@ onBeforeUnmount(() => {
 }
 
 .chart-card-title {
-  font-size: 25px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
@@ -1163,28 +1241,6 @@ onBeforeUnmount(() => {
     font-size: 18px;
   }
 
-  :deep(.el-table__footer td) {
-    background: var(--bg-muted);
-    font-weight: 700;
-    color: var(--ink-primary);
-    font-size: 18px;
-    padding: 12px 8px;
-
-    .cell {
-      cursor: default;
-      transition: color 0.15s, background-color 0.15s;
-      padding: 3px 8px;
-      border-radius: 4px;
-      display: inline-block;
-    }
-
-    &:not(:first-child) .cell:not(:empty):hover {
-      background-color: var(--accent-soft);
-      color: var(--accent);
-      cursor: pointer;
-    }
-  }
-
   :deep(.el-table-column--selection) {
     .cell {
       padding: 0;
@@ -1192,11 +1248,26 @@ onBeforeUnmount(() => {
   }
 }
 
+.summary-table {
+  border-radius: 0;
+  box-shadow: none;
+  border-top: none;
+
+  :deep(.el-table__row td) {
+    background: var(--bg-muted) !important;
+    padding: 10px 8px;
+  }
+}
+
+.summary-cell {
+  background: var(--bg-muted) !important;
+}
+
 .section-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 25px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
@@ -1266,10 +1337,6 @@ onBeforeUnmount(() => {
   background: var(--bg-base);
   padding: 20px;
   overflow: auto;
-
-  .bug-table {
-    height: 100%;
-  }
 }
 
 .bug-table--fullscreen {
@@ -1343,11 +1410,12 @@ onBeforeUnmount(() => {
   font-weight: 700;
   color: var(--accent);
   font-family: 'Sora', sans-serif;
+  font-size: 18px;
 }
 
 .clickable-total {
   cursor: pointer;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
   display: inline-block;
@@ -1360,17 +1428,17 @@ onBeforeUnmount(() => {
 // [修复#2] 合计行单元格样式
 .cell-summary {
   font-weight: 700;
-  color: var(--ink-primary);
+  color: var(--accent);
   font-size: 18px;
   cursor: pointer;
   padding: 3px 8px;
   border-radius: 4px;
   transition: color 0.15s, background-color 0.15s;
   display: inline-block;
+  font-family: 'Sora', sans-serif;
 
   &:hover {
     background-color: var(--accent-soft);
-    color: var(--accent);
   }
 }
 
