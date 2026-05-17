@@ -586,7 +586,7 @@ onBeforeUnmount(() => {
     <div class="page-header page-enter">
       <div class="filter-group">
         <div class="filter-item">
-          <label class="filter-label">选择项目</label>
+          <label class="filter-label">项目</label>
           <el-select
             v-model="selectedProject"
             placeholder="请选择项目"
@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
           </el-select>
         </div>
         <div class="filter-item">
-          <label class="filter-label">选择Sprint</label>
+          <label class="filter-label">Sprint</label>
           <el-select
             v-model="selectedSprint"
             placeholder="请选择Sprint"
@@ -1006,7 +1006,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-secondary);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
