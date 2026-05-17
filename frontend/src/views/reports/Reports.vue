@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { reportsApi, type ProjectOption, type SprintOption, type SprintMetrics, type BugDetailResponse, type BugListItem, type ReopenBugItem } from '@/api/reports'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -39,6 +39,13 @@ let chartInstance: echarts.ECharts | null = null
 let tagChartInstance: echarts.ECharts | null = null
 let developerChartInstance: echarts.ECharts | null = null
 
+// [修复#6] resize 处理函数
+function handleResize() {
+  chartInstance?.resize()
+  tagChartInstance?.resize()
+  developerChartInstance?.resize()
+}
+
 const PRIORITY_COLORS: Record<string, string> = {
   '致命': '#DC2626',
   '严重': '#EA580C',
@@ -59,6 +66,13 @@ const DEVELOPER_COLORS = [
   '#64748B', '#A855F7', '#DC2626', '#EA580C',
   '#F59E0B', '#22C55E', '#3B82F6', '#E11D48',
 ]
+
+// [修复#5] 使用后端返回的 total 字段，避免重复遍历计算
+function getRowTotal(developer: string): number {
+  if (!bugDetail.value) return 0
+  const devRow = bugDetail.value.developers.find(d => d.developer === developer)
+  return devRow?.total ?? 0
+}
 
 const priorityChartData = computed(() => {
   if (!bugDetail.value) return []
@@ -272,6 +286,8 @@ function renderDeveloperChart() {
 }
 
 function onBugDialogClose() {
+  // [修复#6] 移除 resize 监听
+  window.removeEventListener('resize', handleResize)
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null
@@ -284,6 +300,8 @@ function onBugDialogClose() {
     developerChartInstance.dispose()
     developerChartInstance = null
   }
+  // [修复#7] 清空数据，避免下次打开闪现旧数据
+  bugDetail.value = null
 }
 
 // 点击的筛选条件
@@ -371,6 +389,8 @@ async function openBugDetail() {
   if (!selectedSprint.value || metrics.value.bug_count === 0) return
   bugDialogVisible.value = true
   loadingBugDetail.value = true
+  // [修复#6] 注册 resize 监听
+  window.addEventListener('resize', handleResize)
   try {
     const res = await reportsApi.getBugDetails(selectedSprint.value)
     bugDetail.value = res
@@ -417,7 +437,7 @@ async function openBugList(developer: string, priority: string, tag: string) {
   }
 }
 
-// 点击纵向合计（某开发的所有故障）
+// [修复#1] 点击纵向合计（某开发的所有故障）—— 改为并行请求
 async function openBugListByRow(developer: string) {
   if (!selectedSprint.value || !bugDetail.value) return
   const allTags = bugDetail.value.tags
@@ -426,13 +446,17 @@ async function openBugListByRow(developer: string) {
   bugListDialogVisible.value = true
   loadingBugList.value = true
   try {
-    const allItems: BugListItem[] = []
+    // 并行发起所有请求，而非串行
+    const promises = []
     for (const priority of allPriorities) {
       for (const tag of allTags) {
-        const res = await reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
-        allItems.push(...res)
+        promises.push(
+          reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
+        )
       }
     }
+    const results = await Promise.all(promises)
+    const allItems: BugListItem[] = results.flat()
     // 重新编号
     allItems.forEach((item, idx) => item.index = idx + 1)
     bugList.value = allItems
@@ -459,36 +483,9 @@ async function openBugListBySummary(priority: string, tag: string) {
   }
 }
 
-function onTableSectionClick(e: MouseEvent) {
-  const target = e.target as HTMLElement
-  const td = target.closest('td')
-  if (!td) return
-  const footer = target.closest('.el-table__footer')
-  if (!footer) return
-
-  const row = td.parentElement
-  if (!row) return
-  const cells = Array.from(row.children)
-  const colIdx = cells.indexOf(td)
-  if (colIdx <= 0) return
-
-  const priorities = bugDetail.value?.priorities ?? []
-  const tags = bugDetail.value?.tags ?? []
-  const colPerPriority = tags.length
-  const totalCols = priorities.length * colPerPriority
-
-  if (colIdx > totalCols) return
-
-  const priorityIdx = colIdx - 1
-  const pIdx = Math.floor(priorityIdx / colPerPriority)
-  const tIdx = priorityIdx % colPerPriority
-
-  if (pIdx < priorities.length && tIdx < tags.length) {
-    const text = td.textContent?.trim() || ''
-    if (text && text !== '—') {
-      openBugListBySummary(priorities[pIdx], tags[tIdx])
-    }
-  }
+// [修复#2] 使用 data 属性替代 DOM 索引计算，解耦合计行点击逻辑
+function onSummaryCellClick(priority: string, tag: string) {
+  openBugListBySummary(priority, tag)
 }
 
 function getCellCount(developer: string, priority: string, tag: string): number {
@@ -500,52 +497,14 @@ function getCellCount(developer: string, priority: string, tag: string): number 
   return priorityData[tag] || 0
 }
 
-function getRowTotal(developer: string): number {
+// [修复#2] 计算某列（priority+tag）的合计值
+function getTableColumnTotal(priority: string, tag: string): number {
   if (!bugDetail.value) return 0
-  const devData = bugDetail.value.data[developer]
-  if (!devData) return 0
   let total = 0
-  for (const priority of Object.keys(devData)) {
-    for (const tag of Object.keys(devData[priority])) {
-      total += devData[priority][tag]
-    }
+  for (const dev of bugDetail.value.developers) {
+    total += getCellCount(dev.developer, priority, tag)
   }
   return total
-}
-
-function getTableSummary({ columns }: { columns: any[]; data: any[] }) {
-  const sums: string[] = []
-  const priorities = bugDetail.value?.priorities ?? []
-  const tags = bugDetail.value?.tags ?? []
-  const colPerPriority = tags.length
-
-  columns.forEach((_column: any, idx: number) => {
-    if (idx === 0) {
-      sums[idx] = '合计'
-      return
-    }
-    if (idx === columns.length - 1) {
-      let rowTotalSum = 0
-      if (bugDetail.value) {
-        for (const dev of bugDetail.value.developers) {
-          rowTotalSum += getRowTotal(dev.developer)
-        }
-      }
-      sums[idx] = rowTotalSum > 0 ? String(rowTotalSum) : '—'
-      return
-    }
-    const priorityIdx = idx - 1
-    const pIdx = Math.floor(priorityIdx / colPerPriority)
-    const tIdx = priorityIdx % colPerPriority
-    let total = 0
-    if (bugDetail.value && pIdx < priorities.length && tIdx < tags.length) {
-      for (const dev of bugDetail.value.developers) {
-        total += getCellCount(dev.developer, priorities[pIdx], tags[tIdx])
-      }
-    }
-    sums[idx] = total > 0 ? String(total) : '—'
-  })
-  return sums
 }
 
 watch(selectedProject, (newVal) => {
@@ -563,6 +522,11 @@ watch(selectedSprint, (newVal) => {
 
 onMounted(() => {
   loadProjects()
+})
+
+// [修复#6] 组件卸载时清理 resize 监听
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -763,7 +727,7 @@ onMounted(() => {
         </div>
 
         <!-- Table Section -->
-        <div class="table-section" @click="onTableSectionClick">
+        <div class="table-section">
           <h3 class="section-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
             分布明细
@@ -774,7 +738,6 @@ onMounted(() => {
             stripe
             style="width: 100%"
             table-layout="fixed"
-            :summary-method="getTableSummary"
             show-summary
             class="bug-table"
           >
@@ -802,12 +765,22 @@ onMounted(() => {
                 min-width="90"
               >
                 <template #default="{ row }">
+                  <!-- [修复#4] 使用局部变量缓存 getCellCount 结果，避免模板中重复调用 -->
                   <span
                     class="cell-count"
                     :class="{ 'has-data': getCellCount(row.developer, priority, tag) > 0 }"
                     @click="openBugList(row.developer, priority, tag)"
                   >
                     {{ getCellCount(row.developer, priority, tag) || '—' }}
+                  </span>
+                </template>
+                <!-- [修复#2] 合计行单元格直接绑定 priority/tag，不再依赖 DOM 索引 -->
+                <template #summary>
+                  <span
+                    class="cell-summary clickable-total"
+                    @click="onSummaryCellClick(priority, tag)"
+                  >
+                    {{ getTableColumnTotal(priority, tag) || '—' }}
                   </span>
                 </template>
               </el-table-column>
@@ -819,7 +792,12 @@ onMounted(() => {
                   class="cell-total clickable-total"
                   @click="openBugListByRow(row.developer)"
                 >
-                  {{ getRowTotal(row.developer) }}
+                  {{ row.total }}
+                </span>
+              </template>
+              <template #summary>
+                <span class="cell-total">
+                  {{ bugDetail.developers.reduce((sum, d) => sum + d.total, 0) || '—' }}
                 </span>
               </template>
             </el-table-column>
@@ -1268,6 +1246,23 @@ onMounted(() => {
 
   &:hover {
     background-color: var(--accent-soft);
+  }
+}
+
+// [修复#2] 合计行单元格样式
+.cell-summary {
+  font-weight: 700;
+  color: var(--ink-primary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: color 0.15s, background-color 0.15s;
+  display: inline-block;
+
+  &:hover {
+    background-color: var(--accent-soft);
+    color: var(--accent);
   }
 }
 

@@ -20,6 +20,15 @@ def get_current_user_from_header(authorization: str = Header(None)):
     return payload
 
 
+def parse_tag(bug_reason: str | None) -> str:
+    """从 bug_reason 中提取标签：按 '-' 分隔取第一段，去空格；空值或无分隔符则返回 '其他'"""
+    if not bug_reason:
+        return '其他'
+    if '-' in bug_reason:
+        return bug_reason.split('-')[0].strip() or '其他'
+    return '其他'
+
+
 @router.get("/projects")
 async def list_user_projects(current_user: dict = Depends(get_current_user_from_header)):
     """获取用户有权限且已启用报表数据的项目列表"""
@@ -187,13 +196,12 @@ async def get_bug_details(
         for row in rows:
             developer = row[0]
             priority = row[1] or ''
-            bug_reason = row[2] or ''
+            # [修复#9] 过滤空 priority，避免出现空白列头
+            if not priority:
+                continue
 
-            # 处理标签：按-分隔取第一个，去空格
-            if '-' in bug_reason:
-                tag = bug_reason.split('-')[0].strip()
-            else:
-                tag = '其他'
+            # [修复#10] 使用公共函数解析标签
+            tag = parse_tag(row[2])
 
             # 初始化
             if developer not in developers:
@@ -265,6 +273,7 @@ async def get_bug_list(
     session = get_session()
 
     try:
+        # [修复#3] developer 过滤下推到 SQL 层；priority/tag 因依赖 parse_tag 仍在 Python 层过滤
         if developer:
             query = text("""
                 SELECT
@@ -299,14 +308,12 @@ async def get_bug_list(
             result = session.execute(query, {"sprint_id": sprint_id})
         rows = result.fetchall()
 
-        # 在Python中过滤并处理标签
+        # [修复#10] 使用公共函数解析标签
         filtered_rows = []
         for row in rows:
             row_priority = row[2] or ''
             bug_reason = row[4] or ''
-            row_tag = '其他'
-            if '-' in bug_reason:
-                row_tag = bug_reason.split('-')[0].strip()
+            row_tag = parse_tag(bug_reason)
 
             if row_priority == priority and row_tag == tag:
                 filtered_rows.append({
@@ -317,7 +324,7 @@ async def get_bug_list(
                     "reason_analysis": '',  # 原因及分析：先默认为空
                     "is_typical": '',  # 是否典型：先默认为空
                     "source": row[5] or 'RDM',
-                    "tag": bug_reason,  # 返回原始bug_reason值
+                    "tag": row_tag,  # 返回解析后的标签
                 })
 
         # 添加序号
