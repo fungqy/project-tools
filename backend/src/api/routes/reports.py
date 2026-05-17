@@ -411,3 +411,114 @@ async def get_reopen_bugs(
         return items
     finally:
         session.close()
+
+
+@router.get("/project-metrics/{project_id}")
+async def get_project_sprints_metrics(
+    project_id: int,
+    current_user: dict = Depends(get_current_user_from_header)
+):
+    """获取项目下所有Sprint的汇总指标数据"""
+    session = get_session()
+
+    try:
+        project_query = text("""
+            SELECT project_id FROM project_configs WHERE id = :project_id
+        """)
+        project_result = session.execute(project_query, {"project_id": project_id})
+        project_row = project_result.fetchone()
+
+        if not project_row:
+            return []
+
+        jira_project_id = project_row[0]
+
+        sprints_query = text("""
+            SELECT sprint_id, sprint_name
+            FROM rdm_sprint
+            WHERE project_id = :jira_project_id
+            GROUP BY sprint_id, sprint_name
+            ORDER BY MAX(enddate) IS NULL DESC, MAX(enddate) DESC, MAX(startdate) DESC
+            LIMIT 20
+        """)
+        sprints_result = session.execute(sprints_query, {"jira_project_id": jira_project_id})
+        sprints = sprints_result.fetchall()
+
+        if not sprints:
+            return []
+
+        metrics_list = []
+        for sprint_row in sprints:
+            sprint_id = sprint_row[0]
+            sprint_name = sprint_row[1]
+
+            if not sprint_id:
+                continue
+            
+            try:
+                # 故事数
+                story_query = text("""
+                    SELECT COUNT(*) FROM rdm_issue
+                    WHERE sprint_id = :sprint_id
+                    AND issue_type IN ('故事', '简单故事')
+                """)
+                story_result = session.execute(story_query, {"sprint_id": sprint_id})
+                story_count = story_result.fetchone()[0] or 0
+
+                # 故障数
+                bug_query = text("""
+                    SELECT COUNT(*) FROM rdm_issue
+                    WHERE sprint_id = :sprint_id
+                    AND issue_type = '故障'
+                """)
+                bug_result = session.execute(bug_query, {"sprint_id": sprint_id})
+                bug_count = bug_result.fetchone()[0] or 0
+
+                # 故障重开数
+                reopen_query = text("""
+                    SELECT COUNT(DISTINCT i.issue_id)
+                    FROM rdm_issue i
+                    INNER JOIN rdm_bug_changelog c ON i.issue_id = c.bug_id
+                    WHERE i.sprint_id = :sprint_id
+                    AND i.issue_type = '故障'
+                    AND c.change_detail = '待测试 -> 处理中'
+                """)
+                reopen_result = session.execute(reopen_query, {"sprint_id": sprint_id})
+                bug_reopen_count = reopen_result.fetchone()[0] or 0
+
+                # 平均时长
+                avg_time_query = text("""
+                    SELECT
+                        COALESCE(AVG(dev_seconds), 0) as avg_dev_seconds,
+                        COALESCE(AVG(test_seconds), 0) as avg_test_seconds
+                    FROM rdm_bug_avgtime_sprint
+                    WHERE sprint_id = :sprint_id
+                """)
+                avg_time_result = session.execute(avg_time_query, {"sprint_id": sprint_id})
+                avg_time_row = avg_time_result.fetchone()
+
+                metrics_list.append({
+                    "sprint_id": sprint_id,
+                    "sprint_name": sprint_name,
+                    "story_count": story_count,
+                    "bug_count": bug_count,
+                    "bug_reopen_count": bug_reopen_count,
+                    "avg_dev_seconds": int(avg_time_row[0]) if avg_time_row and avg_time_row[0] else 0,
+                    "avg_test_seconds": int(avg_time_row[1]) if avg_time_row and avg_time_row[1] else 0,
+                })
+            except Exception as e:
+                # 单个sprint查询失败不影响其他sprint
+                metrics_list.append({
+                    "sprint_id": sprint_id,
+                    "sprint_name": sprint_name,
+                    "story_count": 0,
+                    "bug_count": 0,
+                    "bug_reopen_count": 0,
+                    "avg_dev_seconds": 0,
+                    "avg_test_seconds": 0,
+                    "error": str(e)
+                })
+
+        return metrics_list
+    finally:
+        session.close()

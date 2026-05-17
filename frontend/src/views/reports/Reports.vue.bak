@@ -1,283 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { reportsApi, type ProjectOption, type SprintOption, type SprintMetrics, type BugDetailResponse, type BugListItem, type ReopenBugItem, type SprintMetricsItem } from '@/api/reports'
+import { reportsApi, type ProjectOption, type SprintOption, type SprintMetrics, type BugDetailResponse, type BugListItem, type ReopenBugItem } from '@/api/reports'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 
-// ==================== 质量报表（新） ====================
-const projectMetrics = ref<SprintMetricsItem[]>([])
-const loadingProjectMetrics = ref(false)
-
-const selectedProjectForMetrics = ref<number | null>(null)
-const loadingProjectsForMetrics = ref(false)
-
-// 全屏状态
-const storyChartFullscreen = ref(false)
-const bugChartFullscreen = ref(false)
-const reopenChartFullscreen = ref(false)
-const devTimeFullscreen = ref(false)
-const testTimeFullscreen = ref(false)
-
-const storyChartRef = ref<HTMLElement | null>(null)
-const bugChartRef = ref<HTMLElement | null>(null)
-const reopenChartRef = ref<HTMLElement | null>(null)
-const devTimeRef = ref<HTMLElement | null>(null)
-const testTimeRef = ref<HTMLElement | null>(null)
-
-let storyChartInstance: echarts.ECharts | null = null
-let bugChartInstance: echarts.ECharts | null = null
-let reopenChartInstance: echarts.ECharts | null = null
-let devTimeChartInstance: echarts.ECharts | null = null
-let testTimeChartInstance: echarts.ECharts | null = null
-
-async function loadProjectMetrics(projectId: number) {
-  loadingProjectMetrics.value = true
-  try {
-    const res = await reportsApi.getProjectMetrics(projectId)
-    projectMetrics.value = res
-    await nextTick()
-    renderAllCharts()
-  } catch {
-    ElMessage.error('加载项目指标数据失败')
-  } finally {
-    loadingProjectMetrics.value = false
-  }
-}
-
-function renderAllCharts() {
-  renderStoryChart()
-  renderBugChart()
-  renderReopenChart()
-  renderDevTimeChart()
-  renderTestTimeChart()
-}
-
-function renderStoryChart() {
-  if (!storyChartRef.value) return
-  if (projectMetrics.value.length === 0) {
-    storyChartInstance?.clear()
-    return
-  }
-  if (!storyChartInstance) {
-    storyChartInstance = echarts.init(storyChartRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => s.story_count)
-  storyChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666' } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
-    series: [{
-      type: 'bar',
-      data: yData,
-      itemStyle: { color: '#6366F1', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{
-      type: 'text',
-      left: '3%',
-      top: '3%',
-      style: { text: '故事数', fontSize: 14, fontWeight: 600, fill: '#333' }
-    }]
-  })
-  nextTick(() => {
-    storyChartInstance?.resize()
-  })
-}
-
-function renderBugChart() {
-  if (!bugChartRef.value) return
-  if (projectMetrics.value.length === 0) {
-    bugChartInstance?.clear()
-    return
-  }
-  if (!bugChartInstance) {
-    bugChartInstance = echarts.init(bugChartRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => ({ value: s.bug_count, sprintId: s.sprint_id }))
-  bugChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
-    series: [{
-      type: 'line',
-      data: yData,
-      smooth: true,
-      lineStyle: { color: '#6366F1', width: 3 },
-      itemStyle: { color: '#6366F1' },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(99, 102, 241, 0.3)' }, { offset: 1, color: 'rgba(99, 102, 241, 0.05)' }] } },
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障数', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
-  bugChartInstance.off('click')
-  bugChartInstance.on('click', (params: any) => {
-    if (params.data?.sprintId && params.data.value > 0) {
-      openBugDetailBySprint(params.data.sprintId)
-    }
-  })
-  nextTick(() => {
-    bugChartInstance?.resize()
-  })
-}
-
-function renderReopenChart() {
-  if (!reopenChartRef.value) return
-  if (projectMetrics.value.length === 0) {
-    reopenChartInstance?.clear()
-    return
-  }
-  if (!reopenChartInstance) {
-    reopenChartInstance = echarts.init(reopenChartRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => ({ value: s.bug_reopen_count, sprintId: s.sprint_id }))
-  reopenChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
-    series: [{
-      type: 'line',
-      data: yData,
-      smooth: true,
-      lineStyle: { color: '#EC4899', width: 3 },
-      itemStyle: { color: '#EC4899' },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(236, 72, 153, 0.3)' }, { offset: 1, color: 'rgba(236, 72, 153, 0.05)' }] } },
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障重开数', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
-  reopenChartInstance.off('click')
-  reopenChartInstance.on('click', (params: any) => {
-    if (params.data?.sprintId && params.data.value > 0) {
-      openReopenBySprint(params.data.sprintId)
-    }
-  })
-}
-
-function renderDevTimeChart() {
-  if (!devTimeRef.value) return
-  if (projectMetrics.value.length === 0) {
-    devTimeChartInstance?.clear()
-    return
-  }
-  if (!devTimeChartInstance) {
-    devTimeChartInstance = echarts.init(devTimeRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => s.avg_dev_seconds > 0 ? parseFloat((s.avg_dev_seconds / 3600).toFixed(1)) : 0)
-  devTimeChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', formatter: (params: any) => `${params[0].name}: ${params[0].value}h`, textStyle: { color: '#fff' } },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666', formatter: '{value}h' } },
-    series: [{
-      type: 'bar',
-      data: yData,
-      itemStyle: { color: '#14B8A6', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障平均Dev时长', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
-  nextTick(() => {
-    devTimeChartInstance?.resize()
-  })
-}
-
-function renderTestTimeChart() {
-  if (!testTimeRef.value) return
-  if (projectMetrics.value.length === 0) {
-    testTimeChartInstance?.clear()
-    return
-  }
-  if (!testTimeChartInstance) {
-    testTimeChartInstance = echarts.init(testTimeRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => s.avg_test_seconds > 0 ? parseFloat((s.avg_test_seconds / 3600).toFixed(1)) : 0)
-  testTimeChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', formatter: (params: any) => `${params[0].name}: ${params[0].value}h`, textStyle: { color: '#fff' } },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666', formatter: '{value}h' } },
-    series: [{
-      type: 'bar',
-      data: yData,
-      itemStyle: { color: '#F97316', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障平均Test时长', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
-  nextTick(() => {
-    testTimeChartInstance?.resize()
-  })
-}
-
-function toggleFullscreen(type: 'story' | 'bug' | 'reopen' | 'dev' | 'test') {
-  switch (type) {
-    case 'story': storyChartFullscreen.value = !storyChartFullscreen.value; break
-    case 'bug': bugChartFullscreen.value = !bugChartFullscreen.value; break
-    case 'reopen': reopenChartFullscreen.value = !reopenChartFullscreen.value; break
-    case 'dev': devTimeFullscreen.value = !devTimeFullscreen.value; break
-    case 'test': testTimeFullscreen.value = !testTimeFullscreen.value; break
-  }
-  setTimeout(() => {
-    storyChartInstance?.resize()
-    bugChartInstance?.resize()
-    reopenChartInstance?.resize()
-    devTimeChartInstance?.resize()
-    testTimeChartInstance?.resize()
-  }, 100)
-}
-
-// 点击故障数展示弹窗
-const bugDialogVisible = ref(false)
-const bugDetail = ref<BugDetailResponse | null>(null)
-const loadingBugDetail = ref(false)
-const currentSprintForBug = ref<number | null>(null)
-
-async function openBugDetailBySprint(sprintId: number) {
-  currentSprintForBug.value = sprintId
-  bugDialogVisible.value = true
-  loadingBugDetail.value = true
-  window.addEventListener('resize', handleChartsResize)
-  try {
-    const res = await reportsApi.getBugDetails(sprintId)
-    bugDetail.value = res
-    await nextTick()
-    renderPriorityChart()
-    renderTagChart()
-    renderDeveloperChart()
-  } catch {
-    ElMessage.error('加载故障详情失败')
-  } finally {
-    loadingBugDetail.value = false
-  }
-}
-
-// 点击故障重开数展示弹窗
-const reopenDialogVisible = ref(false)
-const reopenBugs = ref<ReopenBugItem[]>([])
-const loadingReopenBugs = ref(false)
-const currentSprintForReopen = ref<number | null>(null)
-
-async function openReopenBySprint(sprintId: number) {
-  currentSprintForReopen.value = sprintId
-  reopenDialogVisible.value = true
-  loadingReopenBugs.value = true
-  try {
-    const res = await reportsApi.getReopenBugs(sprintId)
-    reopenBugs.value = res
-  } catch {
-    ElMessage.error('加载故障重开列表失败')
-  } finally {
-    loadingReopenBugs.value = false
-  }
-}
-
-// ==================== 原有故障分布功能 ====================
 const projects = ref<ProjectOption[]>([])
 const sprints = ref<SprintOption[]>([])
 const metrics = ref<SprintMetrics>({ story_count: 0, bug_count: 0, bug_reopen_count: 0 })
@@ -290,11 +16,21 @@ const loadingProjects = ref(false)
 const loadingSprints = ref(false)
 const loadingMetrics = ref(false)
 
+// 故障详情弹窗
+const bugDialogVisible = ref(false)
+const bugDetail = ref<BugDetailResponse | null>(null)
+const loadingBugDetail = ref(false)
+
 // 故障明细弹窗
 const bugListDialogVisible = ref(false)
 const bugList = ref<BugListItem[]>([])
 const loadingBugList = ref(false)
 const bugListTitle = ref('')
+
+// 故障重开弹窗
+const reopenDialogVisible = ref(false)
+const reopenBugs = ref<ReopenBugItem[]>([])
+const loadingReopenBugs = ref(false)
 
 // 分布明细表格全屏
 const bugDetailFullscreen = ref(false)
@@ -310,15 +46,11 @@ let chartInstance: echarts.ECharts | null = null
 let tagChartInstance: echarts.ECharts | null = null
 let developerChartInstance: echarts.ECharts | null = null
 
-function handleChartsResize() {
+// [修复#6] resize 处理函数
+function handleResize() {
   chartInstance?.resize()
   tagChartInstance?.resize()
   developerChartInstance?.resize()
-  storyChartInstance?.resize()
-  bugChartInstance?.resize()
-  reopenChartInstance?.resize()
-  devTimeChartInstance?.resize()
-  testTimeChartInstance?.resize()
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -342,6 +74,7 @@ const DEVELOPER_COLORS = [
   '#F59E0B', '#22C55E', '#3B82F6', '#E11D48',
 ]
 
+// [修复#5] 使用后端返回的 total 字段，避免重复遍历计算
 function getRowTotal(developer: string): number {
   if (!bugDetail.value) return 0
   const devRow = bugDetail.value.developers.find(d => d.developer === developer)
@@ -375,16 +108,50 @@ function renderPriorityChart() {
   }
   const total = priorityChartData.value.reduce((sum, item) => sum + item.value, 0)
   chartInstance.setOption({
-    tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 20 },
+      formatter: '{b}: {c} ({d}%)',
+    },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
+      type: 'pie',
+      radius: ['55%', '80%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
+      },
       label: { show: false },
-      emphasis: { scale: true, scaleSize: 8, label: { show: false } },
-      data: priorityChartData.value.map(item => ({ name: item.name, value: item.value, itemStyle: { color: PRIORITY_COLORS[item.name] || '#9CA3AF' } })),
+      emphasis: {
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
+      },
+      data: priorityChartData.value.map(item => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: PRIORITY_COLORS[item.name] || '#9CA3AF' },
+      })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{
+      type: 'text',
+      left: 'center',
+      top: '36%',
+      style: {
+        text: `${total}`,
+        fontSize: 80,
+        fontWeight: 700,
+        fill: '#1A1A2E',
+        textAlign: 'center',
+        fontFamily: 'Sora, sans-serif',
+      },
+    }],
   })
 }
 
@@ -416,22 +183,59 @@ function renderTagChart() {
   }
   const total = tagChartData.value.reduce((sum, item) => sum + item.value, 0)
   tagChartInstance.setOption({
-    tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 20 },
+      formatter: '{b}: {c} ({d}%)',
+    },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
+      type: 'pie',
+      radius: ['55%', '80%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
+      },
       label: { show: false },
-      emphasis: { scale: true, scaleSize: 8, label: { show: false } },
-      data: tagChartData.value.map((item, idx) => ({ name: item.name, value: item.value, itemStyle: { color: TAG_COLORS[idx % TAG_COLORS.length] } })),
+      emphasis: {
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
+      },
+      data: tagChartData.value.map((item, idx) => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: TAG_COLORS[idx % TAG_COLORS.length] },
+      })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{
+      type: 'text',
+      left: 'center',
+      top: '36%',
+      style: {
+        text: `${total}`,
+        fontSize: 80,
+        fontWeight: 700,
+        fill: '#1A1A2E',
+        textAlign: 'center',
+        fontFamily: 'Sora, sans-serif',
+      },
+    }],
   })
 }
 
 const developerChartData = computed(() => {
   if (!bugDetail.value) return []
-  return bugDetail.value.developers.map((dev) => ({ name: dev.developer, value: getRowTotal(dev.developer) })).filter(item => item.value > 0)
+  return bugDetail.value.developers.map((dev) => ({
+    name: dev.developer,
+    value: getRowTotal(dev.developer),
+  })).filter(item => item.value > 0)
 })
 
 function renderDeveloperChart() {
@@ -441,34 +245,92 @@ function renderDeveloperChart() {
   }
   const total = developerChartData.value.reduce((sum, item) => sum + item.value, 0)
   developerChartInstance.setOption({
-    tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#1A1A2E',
+      borderColor: 'transparent',
+      padding: [10, 16],
+      textStyle: { color: '#fff', fontSize: 20 },
+      formatter: '{b}: {c} ({d}%)',
+    },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
-      itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
+      type: 'pie',
+      radius: ['55%', '80%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: true,
+      itemStyle: {
+        borderRadius: 8,
+        borderColor: '#F7F6F3',
+        borderWidth: 3,
+      },
       label: { show: false },
-      emphasis: { scale: true, scaleSize: 8, label: { show: false } },
-      data: developerChartData.value.map((item, idx) => ({ name: item.name, value: item.value, itemStyle: { color: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] } })),
+      emphasis: {
+        scale: true,
+        scaleSize: 8,
+        label: { show: false },
+      },
+      data: developerChartData.value.map((item, idx) => ({
+        name: item.name,
+        value: item.value,
+        itemStyle: { color: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] },
+      })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{
+      type: 'text',
+      left: 'center',
+      top: '36%',
+      style: {
+        text: `${total}`,
+        fontSize: 80,
+        fontWeight: 700,
+        fill: '#1A1A2E',
+        textAlign: 'center',
+        fontFamily: 'Sora, sans-serif',
+      },
+    }],
   })
 }
 
 function onBugDialogClose() {
-  window.removeEventListener('resize', handleChartsResize)
-  if (chartInstance) { chartInstance.dispose(); chartInstance = null }
-  if (tagChartInstance) { tagChartInstance.dispose(); tagChartInstance = null }
-  if (developerChartInstance) { developerChartInstance.dispose(); developerChartInstance = null }
+  // [修复#6] 移除 resize 监听
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+  if (tagChartInstance) {
+    tagChartInstance.dispose()
+    tagChartInstance = null
+  }
+  if (developerChartInstance) {
+    developerChartInstance.dispose()
+    developerChartInstance = null
+  }
+  // [修复#7] 清空数据，避免下次打开闪现旧数据
   bugDetail.value = null
 }
 
+// 点击的筛选条件
 const currentDeveloper = ref('')
 const currentPriority = ref('')
 const currentTag = ref('')
 
+const bugRate = computed(() => {
+  if (metrics.value.story_count === 0) return '0%'
+  const rate = (metrics.value.bug_count / metrics.value.story_count * 100).toFixed(1)
+  return `${rate}%`
+})
+
+const bugReopenRate = computed(() => {
+  if (metrics.value.bug_count === 0) return '0%'
+  const rate = (metrics.value.bug_reopen_count / metrics.value.bug_count * 100).toFixed(1)
+  return `${rate}%`
+})
+
 const summaryRow = computed(() => {
   if (!bugDetail.value) return []
-  const row: Record<string, string | number> = { developer: '合计' }
+  const row: Record<string, number> = { developer: '合计' }
   for (const priority of bugDetail.value.priorities) {
     for (const tag of bugDetail.value.tags) {
       row[`${priority}-${tag}`] = getTableColumnTotal(priority, tag)
@@ -490,20 +352,6 @@ async function loadProjects() {
     ElMessage.error('加载项目列表失败')
   } finally {
     loadingProjects.value = false
-  }
-}
-
-async function loadProjectsForMetrics() {
-  loadingProjectsForMetrics.value = true
-  try {
-    const res = await reportsApi.getProjects()
-    if (res.length > 0) {
-      selectedProjectForMetrics.value = res[0].id
-    }
-  } catch {
-    ElMessage.error('加载项目列表失败')
-  } finally {
-    loadingProjectsForMetrics.value = false
   }
 }
 
@@ -536,6 +384,14 @@ async function loadMetrics(sprintId: number) {
   }
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds <= 0) return '—'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m`
+}
+
 async function loadAvgTime(sprintId: number) {
   loadingAvgTime.value = true
   try {
@@ -545,6 +401,40 @@ async function loadAvgTime(sprintId: number) {
     avgTime.value = { avg_dev_seconds: 0, avg_test_seconds: 0 }
   } finally {
     loadingAvgTime.value = false
+  }
+}
+
+async function openBugDetail() {
+  if (!selectedSprint.value || metrics.value.bug_count === 0) return
+  bugDialogVisible.value = true
+  loadingBugDetail.value = true
+  // [修复#6] 注册 resize 监听
+  window.addEventListener('resize', handleResize)
+  try {
+    const res = await reportsApi.getBugDetails(selectedSprint.value)
+    bugDetail.value = res
+    await nextTick()
+    renderPriorityChart()
+    renderTagChart()
+    renderDeveloperChart()
+  } catch {
+    ElMessage.error('加载故障详情失败')
+  } finally {
+    loadingBugDetail.value = false
+  }
+}
+
+async function openReopenBugs() {
+  if (!selectedSprint.value || metrics.value.bug_reopen_count === 0) return
+  reopenDialogVisible.value = true
+  loadingReopenBugs.value = true
+  try {
+    const res = await reportsApi.getReopenBugs(selectedSprint.value)
+    reopenBugs.value = res
+  } catch {
+    ElMessage.error('加载故障重开列表失败')
+  } finally {
+    loadingReopenBugs.value = false
   }
 }
 
@@ -566,6 +456,7 @@ async function openBugList(developer: string, priority: string, tag: string) {
   }
 }
 
+// [修复#1] 点击纵向合计（某开发的所有故障）—— 改为并行请求
 async function openBugListByRow(developer: string) {
   if (!selectedSprint.value || !bugDetail.value) return
   const allTags = bugDetail.value.tags
@@ -574,14 +465,18 @@ async function openBugListByRow(developer: string) {
   bugListDialogVisible.value = true
   loadingBugList.value = true
   try {
+    // 并行发起所有请求，而非串行
     const promises = []
     for (const priority of allPriorities) {
       for (const tag of allTags) {
-        promises.push(reportsApi.getBugList(selectedSprint.value, priority, tag, developer))
+        promises.push(
+          reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
+        )
       }
     }
     const results = await Promise.all(promises)
     const allItems: BugListItem[] = results.flat()
+    // 重新编号
     allItems.forEach((item, idx) => item.index = idx + 1)
     bugList.value = allItems
   } catch {
@@ -607,10 +502,12 @@ async function openBugListBySummary(priority: string, tag: string) {
   }
 }
 
+// [修复#2] 使用 data 属性替代 DOM 索引计算，解耦合计行点击逻辑
 function onSummaryCellClick(priority: string, tag: string) {
   openBugListBySummary(priority, tag)
 }
 
+// 打开所有故障数据（总计行点击）
 async function openBugListAll() {
   if (!selectedSprint.value || !bugDetail.value) return
   const allTags = bugDetail.value.tags
@@ -624,7 +521,9 @@ async function openBugListAll() {
     for (const developer of allDevelopers) {
       for (const priority of allPriorities) {
         for (const tag of allTags) {
-          promises.push(reportsApi.getBugList(selectedSprint.value, priority, tag, developer))
+          promises.push(
+            reportsApi.getBugList(selectedSprint.value, priority, tag, developer)
+          )
         }
       }
     }
@@ -648,6 +547,7 @@ function getCellCount(developer: string, priority: string, tag: string): number 
   return priorityData[tag] || 0
 }
 
+// [修复#2] 计算某列（priority+tag）的合计值
 function getTableColumnTotal(priority: string, tag: string): number {
   if (!bugDetail.value) return 0
   let total = 0
@@ -670,24 +570,13 @@ watch(selectedSprint, (newVal) => {
   }
 })
 
-watch(selectedProjectForMetrics, (newVal) => {
-  if (newVal) {
-    loadProjectMetrics(newVal)
-  }
-})
-
 onMounted(() => {
   loadProjects()
-  loadProjectsForMetrics()
 })
 
+// [修复#6] 组件卸载时清理 resize 监听
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleChartsResize)
-  storyChartInstance?.dispose()
-  bugChartInstance?.dispose()
-  reopenChartInstance?.dispose()
-  devTimeChartInstance?.dispose()
-  testTimeChartInstance?.dispose()
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
@@ -699,9 +588,9 @@ onBeforeUnmount(() => {
         <div class="filter-item">
           <label class="filter-label">项目</label>
           <el-select
-            v-model="selectedProjectForMetrics"
+            v-model="selectedProject"
             placeholder="请选择项目"
-            :loading="loadingProjectsForMetrics"
+            :loading="loadingProjects"
             class="filter-select"
           >
             <el-option
@@ -712,109 +601,111 @@ onBeforeUnmount(() => {
             />
           </el-select>
         </div>
+        <div class="filter-item">
+          <label class="filter-label">Sprint</label>
+          <el-select
+            v-model="selectedSprint"
+            placeholder="请选择Sprint"
+            :loading="loadingSprints"
+            :disabled="!selectedProject || sprints.length === 0"
+            class="filter-select"
+          >
+            <el-option
+              v-for="sprint in sprints"
+              :key="sprint.sprint_id"
+              :label="sprint.sprint_name"
+              :value="sprint.sprint_id"
+            />
+          </el-select>
+        </div>
       </div>
     </div>
 
-    <!-- Charts Grid -->
+    <!-- Metrics cards -->
     <div class="metrics-grid page-enter" style="animation-delay: 0.06s">
-      <div class="metrics-row">
-        <!-- 故事数 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': storyChartFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故事数</span>
-            <el-button
-              :icon="storyChartFullscreen ? 'Close' : 'FullScreen'"
-              circle
-              size="small"
-              @click="toggleFullscreen('story')"
-            />
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="storyChartRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name">故事数</span>
+          <div class="metric-icon story-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
           </div>
         </div>
-
-        <!-- 故障数 - 折线图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': bugChartFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故障数</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="bugChartFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('bug')"
-              />
-            </div>
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="bugChartRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
-          </div>
-        </div>
+        <span class="metric-value">{{ metrics.story_count }}</span>
       </div>
 
-      <div class="metrics-row">
-        <!-- 故障重开数 - 折线图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': reopenChartFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故障重开数</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="reopenChartFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('reopen')"
-              />
-            </div>
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="reopenChartRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
+      <div class="metric-card clickable" @click="openBugDetail">
+        <div class="metric-header">
+          <span class="metric-name">故障数</span>
+          <div class="metric-icon bug-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v4M12 16h.01M9 3L7 5M15 3l2 2M5 9l-2 2M5 15l-2-2M19 15l-2-2M19 9l2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
           </div>
         </div>
-
-        <!-- 故障平均Dev时长 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': devTimeFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故障平均Dev时长</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="devTimeFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('dev')"
-              />
-            </div>
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="devTimeRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
-          </div>
-        </div>
+        <span class="metric-value">{{ metrics.bug_count }}</span>
+        <div class="click-hint" v-if="metrics.bug_count > 0">点击查看详情</div>
       </div>
 
-      <div class="metrics-row">
-        <!-- 故障平均Test时长 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': testTimeFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故障平均Test时长</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="testTimeFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('test')"
-              />
-            </div>
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="testTimeRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
+      <div class="metric-card clickable" @click="openReopenBugs">
+        <div class="metric-header">
+          <span class="metric-name">故障重开数</span>
+          <div class="metric-icon reopen-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M1 4v6h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </div>
         </div>
+        <div class="metric-value-row">
+          <span class="metric-value">{{ metrics.bug_reopen_count }}</span>
+          <span class="metric-sub" v-if="metrics.bug_count > 0">重开率 {{ bugReopenRate }}</span>
+        </div>
+        <div class="click-hint" v-if="metrics.bug_reopen_count > 0">点击查看详情</div>
       </div>
+
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-name">缺陷率</span>
+          <div class="metric-icon rate-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ bugRate }}</span>
+      </div>
+
+      <div class="metric-card" v-loading="loadingAvgTime" element-loading-text=" " element-loading-background="transparent">
+        <div class="metric-header">
+          <span class="metric-name">故障平均Dev时长</span>
+          <div class="metric-icon dev-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ formatDuration(avgTime.avg_dev_seconds) }}</span>
+      </div>
+
+      <div class="metric-card" v-loading="loadingAvgTime" element-loading-text=" " element-loading-background="transparent">
+        <div class="metric-header">
+          <span class="metric-name">故障平均Test时长</span>
+          <div class="metric-icon test-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="metric-value">{{ formatDuration(avgTime.avg_test_seconds) }}</span>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div v-if="!selectedSprint" class="empty-state page-enter" style="animation-delay: 0.1s">
+      <el-empty description="请选择项目和Sprint查看报表数据" />
     </div>
 
     <!-- Bug Detail Dialog -->
@@ -1090,8 +981,6 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 .reports-page {
   max-width: 100%;
-  width: 100%;
-  min-height: 100%;
 }
 
 // ── Page Header ──────────────────────────────────────────────
@@ -1124,30 +1013,12 @@ onBeforeUnmount(() => {
   width: 220px;
 }
 
-// ── Charts Grid ──────────────────────────────────────────────
-.charts-grid {
-  display: block;
-  width: 100%;
-  margin-bottom: 24px;
-}
-
-.charts-row {
-  display: flex;
+// ── Metrics Grid ──────────────────────────────────────────────
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 18px;
-  width: 100%;
-
-  .chart-card {
-    flex: 1;
-    min-width: 0;
-  }
-
-  @media (max-width: 1200px) {
-    flex-direction: column;
-    
-    .chart-card {
-      width: 100%;
-    }
-  }
+  margin-bottom: 24px;
 }
 
 .metric-card {
@@ -1270,214 +1141,44 @@ onBeforeUnmount(() => {
 // ── Bug Detail Dialog ────────────────────────────────────────
 // ── Charts Row ───────────────────────────────────────────────
 .charts-row {
-  display: flex;
-  gap: 18px;
-  width: 100%;
-
-  .chart-card {
-    flex: 1;
-    min-width: 0;
-  }
-
-  @media (max-width: 1200px) {
-    flex-direction: column;
-
-    .chart-card {
-      width: 100%;
-    }
-  }
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
 }
 
 .chart-card {
   background: var(--bg-surface);
   border-radius: var(--radius-md);
-  padding: 16px 20px;
+  padding: 20px 24px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--bg-muted);
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-height: 280px;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  width: 100%;
-  box-sizing: border-box;
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
-
-  &.chart-card--fullscreen {
-    position: fixed;
-    top: 60px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: calc(100vh - 60px);
-    z-index: 9999;
-    border-radius: 0;
-    padding: 20px;
-    min-height: unset;
-  }
+  gap: 16px;
 }
 
 .chart-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  flex-shrink: 0;
+  gap: 16px;
 }
 
 .chart-card-title {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
   letter-spacing: -0.01em;
-}
-
-.chart-header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.chart-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.chart-container {
-  flex: 1;
-  min-height: 200px;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-}
-
-.chart-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  color: var(--ink-tertiary);
-  font-size: 14px;
-}
-
-// ── Metrics Grid ─────────────────────────────────────────────
-.metrics-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  width: 100%;
-  margin-bottom: 24px;
-}
-
-.metrics-row {
-  display: flex;
-  gap: 18px;
-  width: 100%;
-
-  .metric-card {
-    flex: 1;
-    min-width: 0;
-  }
-
-  @media (max-width: 1200px) {
-    flex-direction: column;
-
-    .metric-card {
-      width: 100%;
-    }
-  }
-}
-
-.metric-card {
-  background: var(--bg-surface);
-  border-radius: var(--radius-md);
-  padding: 16px 20px;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--bg-muted);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 280px;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  width: 100%;
-  box-sizing: border-box;
-
-  &:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-  }
-
-  &.metric-card--fullscreen {
-    position: fixed;
-    top: 60px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: calc(100vh - 60px);
-    z-index: 9999;
-    border-radius: 0;
-    padding: 20px;
-    min-height: unset;
-  }
-}
-
-.metric-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   flex-shrink: 0;
 }
 
-.metric-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-primary);
-  font-family: 'Sora', sans-serif;
-  letter-spacing: -0.01em;
-}
-
-.metric-header-actions {
+.chart-legend {
   display: flex;
-  gap: 8px;
-}
-
-.metric-card-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.metric-container {
-  flex: 1;
-  min-height: 200px;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-}
-
-.metric-empty {
-  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  color: var(--ink-tertiary);
-  font-size: 14px;
-}
-
-// ── Empty State ───────────────────────────────────────────────
-.empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
 }
 
 .legend-item {
@@ -1505,6 +1206,12 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-family: 'Sora', sans-serif;
   font-size: 18px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 260px;
+  min-height: 220px;
 }
 
 // ── Table Section ────────────────────────────────────────────

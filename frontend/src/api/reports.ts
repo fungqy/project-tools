@@ -52,6 +52,16 @@ export interface ReopenBugItem {
   resolution: string
 }
 
+export interface SprintMetricsItem {
+  sprint_id: number
+  sprint_name: string
+  story_count: number
+  bug_count: number
+  bug_reopen_count: number
+  avg_dev_seconds: number
+  avg_test_seconds: number
+}
+
 export const reportsApi = {
   getProjects() {
     return api.get<ProjectOption[]>('/reports/projects') as unknown as Promise<ProjectOption[]>
@@ -89,5 +99,9 @@ export const reportsApi = {
     return api.get<ReopenBugItem[]>('/reports/bugs/reopen', {
       params: { sprint_id: sprintId },
     }) as unknown as Promise<ReopenBugItem[]>
+  },
+
+  getProjectMetrics(projectId: number) {
+    return api.get<SprintMetricsItem[]>(`/reports/project-metrics/${projectId}`) as unknown as Promise<SprintMetricsItem[]>
   },
 }
