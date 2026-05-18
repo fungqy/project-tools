@@ -77,4 +77,4 @@ show_config
 PORT=${PORT:-"3000"}
 
 # 启动开发服务器
-exec npm run dev -- --port "$PORT"
+exec npm run dev -- --host 0.0.0.0 --port "$PORT"
