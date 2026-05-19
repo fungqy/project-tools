@@ -20,7 +20,7 @@ logger = logging.getLogger("Scheduler")
 TASK_TYPE_STORY = "story_reminder"
 TASK_TYPE_TASK = "task_reminder"
 TASK_TYPE_SONAR = "sonar_reminder"
-TASK_TYPE_REPORT = "report_data"
+
 
 
 def parse_time(time_str: str) -> tuple[int, int]:
@@ -169,6 +169,7 @@ def record_execution(
     scheduled_time: datetime,
     status: str,
     error_message: str = "",
+    task_exec_type: str = "automatic",
 ):
     """记录任务执行日志"""
     from db.database import get_session
@@ -183,6 +184,7 @@ def record_execution(
             executed_at=datetime.now(),
             status=status,
             error_message=error_message,
+            task_exec_type=task_exec_type,
         )
         session.add(log)
         session.commit()
@@ -190,6 +192,146 @@ def record_execution(
         logger.error(f"记录执行日志失败: {e}")
     finally:
         session.close()
+
+
+def get_project_config_by_id(project_config_id: int):
+    """根据项目配置ID获取单个 ProjectRemindConfig"""
+    from db.database import get_session
+    from db.models import ProjectReminderSettings, ProjectConfig
+
+    session = get_session()
+    try:
+        config = (
+            session.query(ProjectConfig)
+            .filter(ProjectConfig.id == project_config_id)
+            .first()
+        )
+        if not config:
+            return None
+
+        setting = config.reminder_settings
+        auth_config = (
+            get_user_jira_auth(int(config.created_by))
+            if config.created_by
+            else None
+        )
+
+        return ProjectRemindConfig(
+            project_config_id=config.id,
+            board_id=str(config.board_id),
+            board_name=str(config.board_name),
+            project_id=str(config.project_id),
+            project_name=str(config.project_name),
+            gitlab_group_key=str(config.gitlab_group_key or ""),
+            need_story_remind=bool(setting.need_story_remind) if setting else False,
+            need_task_remind=bool(setting.need_task_remind) if setting else False,
+            need_sonar_scan_remind=bool(setting.need_sonar_scan_remind) if setting else False,
+            need_report_data=bool(setting.need_report_data) if setting else False,
+            sonar_key_prefix=str(config.sonar_key_prefix or ""),
+            sonar_scan_remind_default_person=str(config.sonar_scan_remind_default_person or ""),
+            robot_key=str(config.robot_key or ""),
+            jira_user=auth_config.user if auth_config else "",
+            jira_token=auth_config.token if auth_config else "",
+            story_remind_time=getattr(setting, "story_remind_time", "") or "",
+            task_remind_time=getattr(setting, "task_remind_time", "") or "",
+            sonar_remind_time=getattr(setting, "sonar_remind_time", "") or "",
+        )
+    finally:
+        session.close()
+
+
+def check_sprint_data_exists(sprint_id: str) -> bool:
+    """检查指定 sprint 是否已有数据"""
+    from sqlalchemy import text
+    from db.database import get_session
+
+    session = get_session()
+    try:
+        query = text(
+            "SELECT COUNT(1) FROM rdm_sprint WHERE sprint_id = :sprint_id"
+        )
+        count = session.execute(query, {"sprint_id": sprint_id}).fetchone()[0]
+        return count > 0
+    finally:
+        session.close()
+
+
+def manual_run_story_task(config: ProjectRemindConfig, scheduled_time: datetime):
+    from task import remind_week_story as module
+
+    logger.info(f"[{config.project_name}] 手动执行故事提醒...")
+    try:
+        module_run(module, config)
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_STORY,
+            scheduled_time,
+            "success",
+            task_exec_type="manual",
+        )
+    except Exception as e:
+        logger.error(f"[{config.project_name}] 手动执行故事提醒失败: {e}")
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_STORY,
+            scheduled_time,
+            "failed",
+            str(e),
+            task_exec_type="manual",
+        )
+        raise
+
+
+def manual_run_task_reminder(config: ProjectRemindConfig, scheduled_time: datetime):
+    from task import remind_expire_task as module
+
+    logger.info(f"[{config.project_name}] 手动执行任务提醒...")
+    try:
+        module_run(module, config)
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_TASK,
+            scheduled_time,
+            "success",
+            task_exec_type="manual",
+        )
+    except Exception as e:
+        logger.error(f"[{config.project_name}] 手动执行任务提醒失败: {e}")
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_TASK,
+            scheduled_time,
+            "failed",
+            str(e),
+            task_exec_type="manual",
+        )
+        raise
+
+
+def manual_run_sonar_scan_reminder(config: ProjectRemindConfig, scheduled_time: datetime):
+    import task.remind_sonar_scan as sonar_module
+
+    logger.info(f"[{config.project_name}] 手动执行Sonar扫描提醒...")
+    try:
+        module_run(sonar_module, config)
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_SONAR,
+            scheduled_time,
+            "success",
+            task_exec_type="manual",
+        )
+    except Exception as e:
+        logger.error(f"[{config.project_name}] 手动执行Sonar扫描提醒失败: {e}")
+        record_execution(
+            config.project_config_id,
+            TASK_TYPE_SONAR,
+            scheduled_time,
+            "failed",
+            str(e),
+            task_exec_type="manual",
+        )
+        raise
 
 
 def get_today_tasks_status():
@@ -243,8 +385,7 @@ def get_today_tasks_status():
                     settings.need_sonar_scan_remind,
                     settings.sonar_remind_time,
                 ),
-                ("report_data", settings.need_report_data),
-            ]
+                ]
 
             for task_type, needed, remind_time in tasks:
                 if not needed or not remind_time:
@@ -354,29 +495,7 @@ def run_sonar_scan_reminder(
         )
 
 
-def run_report_data():
-    """执行报表数据生成"""
-    from task import process_rdm_data
 
-    now = datetime.now()
-
-    # 获取报表生成配置的时间
-    project_configs = get_project_configs()
-    for config in project_configs:
-        if not config.need_report_data:
-            break
-
-    if not check_time_match("23:30", now):
-        logger.info(f"当前时间不匹配报表生成时间({report_time})，跳过")
-        return
-
-    logger.info("开始生成报表数据...")
-    try:
-        process_rdm_data()
-        logger.info("报表数据生成完成")
-    except Exception as e:
-        logger.error(f"报表数据生成失败: {e}")
-        raise
 
 
 def run_all_story_tasks():
@@ -513,15 +632,6 @@ class TaskScheduler:
             replace_existing=True,
         )
 
-        # 报表数据生成
-        self.scheduler.add_job(
-            run_report_data,
-            trigger,
-            id=TASK_TYPE_REPORT,
-            name="报表数据生成",
-            replace_existing=True,
-        )
-
     def reload_jobs(self):
         """重新加载所有任务配置"""
         # 移除所有现有任务
@@ -567,9 +677,7 @@ class TaskScheduler:
         elif job_id == TASK_TYPE_SONAR:
             run_all_sonar_scan_reminders()
             return {"status": "success", "message": "Sonar扫描提醒任务已执行"}
-        elif job_id == TASK_TYPE_REPORT:
-            run_report_data()
-            return {"status": "success", "message": "报表数据生成任务已执行"}
+        
         return {"status": "error", "message": f"未知任务: {job_id}"}
 
 

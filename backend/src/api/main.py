@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import auth, projects, reports
+from api.routes import auth, data_import, projects, reports
 from api.routes import scheduler as scheduler_routes
 from api.scheduler import TaskScheduler
 
@@ -51,6 +51,7 @@ app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(scheduler_routes.router)
 app.include_router(reports.router)
+app.include_router(data_import.router)
 
 
 @app.get("/", tags=["健康检查"])
@@ -100,7 +101,4 @@ async def trigger_sonar_reminder():
     return scheduler.run_job_now("sonar_reminder")
 
 
-@app.post("/api/jobs/report-data/trigger", tags=["调度任务"])
-async def trigger_report_data():
-    """手动触发报表数据生成任务"""
-    return scheduler.run_job_now("report_data")
+

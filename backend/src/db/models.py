@@ -468,6 +468,7 @@ class TaskExecutionLog(Base):
     executed_at = Column(DateTime, nullable=False, default=datetime.now)  # 实际执行时间
     status = Column(String(20), nullable=False)  # success, failed
     error_message = Column(String(500), default="")  # 错误信息
+    task_exec_type = Column(String(50), nullable=False, default="automatic")  # manual, automatic
 
     def to_dict(self):
         return {
@@ -480,4 +481,5 @@ class TaskExecutionLog(Base):
             "executed_at": self.executed_at.isoformat() if self.executed_at else None,
             "status": self.status,
             "error_message": self.error_message,
+            "task_exec_type": self.task_exec_type,
         }

@@ -25,7 +25,7 @@ const menuItems = [
   { path: '/jobs', title: '任务调度', icon: Timer },
   { path: '/sonar', title: '代码扫描', icon: Monitor },
   { path: '/reports', title: '质量报表', icon: DataAnalysis },
-  { path: '/screen', title: '文档生成', icon: FullScreen },
+  { path: '/screen', title: '文档导入', icon: FullScreen },
 ]
 
 function handleMenuClick(path: string) {

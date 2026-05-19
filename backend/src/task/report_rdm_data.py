@@ -67,8 +67,11 @@ def insert_to_table(
         )
 
 
-def process_sprint(sprint: JiraSprint):
+def process_sprint(sprint: JiraSprint | str):
     """处理Sprint的数据"""
+    if isinstance(sprint, str):
+        sprint = JiraSprint.from_jira_id(sprint)
+    
     logger.info(f"开始获取 {sprint.project_name} 的 {sprint.sprint_name} RDM数据 ...\n")
     start = time.perf_counter()
 

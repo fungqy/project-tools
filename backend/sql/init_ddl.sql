@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS project_task_logs (
     executed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '实际执行时间',
     status VARCHAR(20) NOT NULL COMMENT '执行状态(success/failed)',
     error_message VARCHAR(500) DEFAULT '' COMMENT '错误信息',
+    task_exec_type VARCHAR(50) NOT NULL COMMENT '任务执行类型(manual/automatic)',
     FOREIGN KEY (project_config_id) REFERENCES project_configs(id) ON DELETE CASCADE
 ) COMMENT '任务执行记录表';
 
@@ -300,3 +301,28 @@ CREATE TABLE `rdm_story_changelog` (
   KEY `idx_story_id` (`story_id`),
   KEY `idx_story_key` (`story_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='故事变更记录';
+
+
+-- ==================================
+-- DOC
+-- ==================================
+-- rdmdb.rdm_doc_bug definition
+
+CREATE TABLE `rdm_doc_bug` (
+  `key` varchar(50) DEFAULT NULL COMMENT '编码',  -- 取【问题编号】列，若存在为空的数据，提示用户不能导入
+  `name` text DEFAULT NULL COMMENT '名称', -- 取【功能点】和【问题详述】列进行拼接，拼接规则：【功能点】>【问题详述】，若【功能点为空】，只取【问题详述】。 【问题详述】存在为空的数据，提示用户不能导入
+  `priority` varchar(50) DEFAULT NULL COMMENT '优先级', -- 取优先级列：并按高->严重、中->一般、低->优化进行转换， 若列中数据在高、中、低之外提示用户默认为哪个值
+  `reason` varchar(512) DEFAULT NULL COMMENT '原因', -- 取【原因分析】和【处理意见】列进行拼接，拼接规则：【原因分析】>【处理意见】，若【处理意见为空】，只取【原因分析】
+  `resolve_method` mediumtext DEFAULT NULL COMMENT '解决方法', -- 取【处理方式】列， 若没有该列，默认为空
+  `maker` varchar(100) DEFAULT NULL COMMENT '产生人',  -- 取【处理人】列。需要将内容中的@、换行符、中文逗号都转换成英文逗号，然后按英文逗号分隔，取最后一个不为空的值
+  `propose` varchar(100) DEFAULT NULL COMMENT '提出人', -- 取【提出人】列。若没有该列，默认为空。
+  `propose_time` datetime DEFAULT NULL COMMENT '提出时间',  -- 取【提出时间】列
+  `resolve_time` datetime DEFAULT NULL COMMENT '解决时间',  -- 取【完成时间】列
+  `status` varchar(50) DEFAULT NULL COMMENT '状态(不处理、处理中、待测试、继续观察、未开始、验证通过、已解决、转任务、转需求)',  -- 取【处理状态】列，若列中数据不在不处理、处理中、待测试、继续观察、未开始、验证通过、已解决、转任务、转需求这几个范围内，提示补充或修改后上传。
+  `type` varchar(100) DEFAULT NULL COMMENT '类型（需求问题、漏做、代码逻辑问题、环境问题、第三方影响、沟通问题）', -- 取【问题类型】列，按规则进行转换。转换规则：代码逻辑问题->代码实现, 漏做->代码实现, 需求问题->业务需求, 环境问题->环境配置, 第三方影响、沟通问题->其他
+  `original_type` varchar(100) DEFAULT NULL COMMENT '原类型（需求问题、漏做、代码逻辑问题、环境问题、第三方影响、沟通问题）', -- 取【问题类型】列，若列中数据不在需求问题、漏做、代码逻辑问题、环境问题、第三方影响、沟通问题这几个范围内的数据，提示补充或修改后上传。
+  `sprint_id` varchar(50) DEFAULT NULL COMMENT 'SprintID',  
+  `project_id` varchar(512) DEFAULT NULL COMMENT '项目ID',
+  KEY `idx_doc_bug_key` (`key`),
+  KEY `idx_doc_bug_sprint_id` (`sprint_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文档故障';

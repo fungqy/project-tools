@@ -11,23 +11,15 @@ const loadingProjectMetrics = ref(false)
 const selectedProjectForMetrics = ref<number | null>(null)
 const loadingProjectsForMetrics = ref(false)
 
-const storyChartFullscreen = ref(false)
-const bugChartFullscreen = ref(false)
-const reopenChartFullscreen = ref(false)
-const devTimeFullscreen = ref(false)
-const testTimeFullscreen = ref(false)
-
 const storyChartRef = ref<HTMLElement | null>(null)
 const bugChartRef = ref<HTMLElement | null>(null)
 const reopenChartRef = ref<HTMLElement | null>(null)
-const devTimeRef = ref<HTMLElement | null>(null)
-const testTimeRef = ref<HTMLElement | null>(null)
+const timeChartRef = ref<HTMLElement | null>(null)
 
 let storyChartInstance: echarts.ECharts | null = null
 let bugChartInstance: echarts.ECharts | null = null
 let reopenChartInstance: echarts.ECharts | null = null
-let devTimeChartInstance: echarts.ECharts | null = null
-let testTimeChartInstance: echarts.ECharts | null = null
+let timeChartInstance: echarts.ECharts | null = null
 
 const bugDialogVisible = ref(false)
 const currentSprintForBug = ref<number | null>(null)
@@ -41,8 +33,7 @@ function handleChartsResize() {
   storyChartInstance?.resize()
   bugChartInstance?.resize()
   reopenChartInstance?.resize()
-  devTimeChartInstance?.resize()
-  testTimeChartInstance?.resize()
+  timeChartInstance?.resize()
 }
 
 async function loadProjectMetrics(projectId: number) {
@@ -63,8 +54,19 @@ function renderAllCharts() {
   renderStoryChart()
   renderBugChart()
   renderReopenChart()
-  renderDevTimeChart()
-  renderTestTimeChart()
+  renderTimeChart()
+}
+
+const tooltipFormatter = (params: any) => {
+  const filtered = Array.isArray(params) ? params.filter((p: any) => !p.seriesName.includes('趋势')) : [params]
+  let html = `<div style="font-size:13px">${params[0]?.axisValue || ''}</div>`
+  for (const p of filtered) {
+    html += `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></span>
+      <span>${p.seriesName}: ${p.value}</span>
+    </div>`
+  }
+  return html
 }
 
 function renderStoryChart() {
@@ -79,21 +81,25 @@ function renderStoryChart() {
   const xData = projectMetrics.value.map(s => s.sprint_name)
   const yData = projectMetrics.value.map(s => s.story_count)
   storyChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '3%', top: '15%', containLabel: true },
+    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: tooltipFormatter },
+    legend: { show: false },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
     xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666' } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
+    yAxis: { type: 'value', minInterval: 1, max: (value: any) => value.max < 5 ? 5 : undefined, axisLabel: { fontSize: 12, color: '#666' } },
     series: [{
+      name: '故事数',
       type: 'bar',
       data: yData,
-      itemStyle: { color: '#6366F1', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{
-      type: 'text',
-      left: '3%',
-      top: '3%',
-      style: { text: '故事数', fontSize: 14, fontWeight: 600, fill: '#333' }
+      itemStyle: { color: 'rgba(99, 102, 241, 0.35)', borderRadius: [4, 4, 0, 0] },
+      barWidth: '30%',
+      label: { show: true, position: 'top', color: '#666', fontSize: 16, formatter: (p: any) => p.value > 0 ? p.value : '' },
+    }, {
+      name: '故事趋势',
+      type: 'line',
+      data: yData,
+      smooth: true,
+      lineStyle: { color: '#6366F1', width: 3 },
+      itemStyle: { color: '#6366F1' },
     }]
   })
   nextTick(() => {
@@ -113,19 +119,26 @@ function renderBugChart() {
   const xData = projectMetrics.value.map(s => s.sprint_name)
   const yData = projectMetrics.value.map(s => ({ value: s.bug_count, sprintId: s.sprint_id }))
   bugChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
+    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: tooltipFormatter },
+    legend: { show: false },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
+    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666' } },
+    yAxis: { type: 'value', minInterval: 1, max: (value: any) => value.max < 5 ? 5 : undefined, axisLabel: { fontSize: 12, color: '#666' } },
     series: [{
+      name: '故障趋势',
       type: 'line',
       data: yData,
       smooth: true,
-      lineStyle: { color: '#6366F1', width: 3 },
-      itemStyle: { color: '#6366F1' },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(99, 102, 241, 0.3)' }, { offset: 1, color: 'rgba(99, 102, 241, 0.05)' }] } },
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障数', fontSize: 14, fontWeight: 600, fill: '#333' } }]
+      lineStyle: { color: '#F97316', width: 3 },
+      itemStyle: { color: '#F97316' },
+    }, {
+      name: '故障数',
+      type: 'bar',
+      data: yData,
+      itemStyle: { color: 'rgba(249, 115, 22, 0.35)', borderRadius: [4, 4, 0, 0] },
+      barWidth: '30%',
+      label: { show: true, position: 'top', color: '#666', fontSize: 16, formatter: (p: any) => p.value > 0 ? p.value : '' },
+    }]
   })
   bugChartInstance.off('click')
   bugChartInstance.on('click', (params: any) => {
@@ -150,19 +163,26 @@ function renderReopenChart() {
   const xData = projectMetrics.value.map(s => s.sprint_name)
   const yData = projectMetrics.value.map(s => ({ value: s.bug_reopen_count, sprintId: s.sprint_id }))
   reopenChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: (params: any) => `${params[0].name}: ${params[0].value}` },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666' } },
+    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: tooltipFormatter },
+    legend: { show: false },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
+    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666' } },
+    yAxis: { type: 'value', minInterval: 1, max: (value: any) => value.max < 5 ? 5 : undefined, axisLabel: { fontSize: 12, color: '#666' } },
     series: [{
+      name: '故障重开数',
+      type: 'bar',
+      data: yData,
+      itemStyle: { color: 'rgba(236, 72, 153, 0.35)', borderRadius: [4, 4, 0, 0] },
+      barWidth: '30%',
+      label: { show: true, position: 'top', color: '#666', fontSize: 16, formatter: (p: any) => p.value > 0 ? p.value : '' },
+    }, {
+      name: '重开趋势',
       type: 'line',
       data: yData,
       smooth: true,
       lineStyle: { color: '#EC4899', width: 3 },
       itemStyle: { color: '#EC4899' },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(236, 72, 153, 0.3)' }, { offset: 1, color: 'rgba(236, 72, 153, 0.05)' }] } },
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障重开数', fontSize: 14, fontWeight: 600, fill: '#333' } }]
+    }]
   })
   reopenChartInstance.off('click')
   reopenChartInstance.on('click', (params: any) => {
@@ -170,81 +190,68 @@ function renderReopenChart() {
       openReopenBySprint(params.data.sprintId)
     }
   })
-}
-
-function renderDevTimeChart() {
-  if (!devTimeRef.value) return
-  if (projectMetrics.value.length === 0) {
-    devTimeChartInstance?.clear()
-    return
-  }
-  if (!devTimeChartInstance) {
-    devTimeChartInstance = echarts.init(devTimeRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => s.avg_dev_seconds > 0 ? parseFloat((s.avg_dev_seconds / 3600).toFixed(1)) : 0)
-  devTimeChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', formatter: (params: any) => `${params[0].name}: ${params[0].value}h`, textStyle: { color: '#fff' } },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666', formatter: '{value}h' } },
-    series: [{
-      type: 'bar',
-      data: yData,
-      itemStyle: { color: '#14B8A6', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障平均Dev时长', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
   nextTick(() => {
-    devTimeChartInstance?.resize()
-  })
-}
-
-function renderTestTimeChart() {
-  if (!testTimeRef.value) return
-  if (projectMetrics.value.length === 0) {
-    testTimeChartInstance?.clear()
-    return
-  }
-  if (!testTimeChartInstance) {
-    testTimeChartInstance = echarts.init(testTimeRef.value)
-  }
-  const xData = projectMetrics.value.map(s => s.sprint_name)
-  const yData = projectMetrics.value.map(s => s.avg_test_seconds > 0 ? parseFloat((s.avg_test_seconds / 3600).toFixed(1)) : 0)
-  testTimeChartInstance.setOption({
-    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', formatter: (params: any) => `${params[0].name}: ${params[0].value}h`, textStyle: { color: '#fff' } },
-    grid: { left: '3%', right: '4%', bottom: '15%', top: '15%', containLabel: true },
-    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666', rotate: 45, interval: 0 } },
-    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666', formatter: '{value}h' } },
-    series: [{
-      type: 'bar',
-      data: yData,
-      itemStyle: { color: '#F97316', borderRadius: [4, 4, 0, 0] },
-      barWidth: '50%',
-    }],
-    graphic: [{ type: 'text', left: '3%', top: '3%', style: { text: '故障平均Test时长', fontSize: 14, fontWeight: 600, fill: '#333' } }]
-  })
-  nextTick(() => {
-    testTimeChartInstance?.resize()
-  })
-}
-
-function toggleFullscreen(type: 'story' | 'bug' | 'reopen' | 'dev' | 'test') {
-  switch (type) {
-    case 'story': storyChartFullscreen.value = !storyChartFullscreen.value; break
-    case 'bug': bugChartFullscreen.value = !bugChartFullscreen.value; break
-    case 'reopen': reopenChartFullscreen.value = !reopenChartFullscreen.value; break
-    case 'dev': devTimeFullscreen.value = !devTimeFullscreen.value; break
-    case 'test': testTimeFullscreen.value = !testTimeFullscreen.value; break
-  }
-  setTimeout(() => {
-    storyChartInstance?.resize()
-    bugChartInstance?.resize()
     reopenChartInstance?.resize()
-    devTimeChartInstance?.resize()
-    testTimeChartInstance?.resize()
-  }, 100)
+  })
+}
+
+function renderTimeChart() {
+  if (!timeChartRef.value) return
+  if (projectMetrics.value.length === 0) {
+    timeChartInstance?.clear()
+    return
+  }
+  if (!timeChartInstance) {
+    timeChartInstance = echarts.init(timeChartRef.value)
+  }
+  const xData = projectMetrics.value.map(s => s.sprint_name)
+  const devData = projectMetrics.value.map(s => s.avg_dev_seconds > 0 ? parseFloat((s.avg_dev_seconds / 3600).toFixed(1)) : 0)
+  const testData = projectMetrics.value.map(s => s.avg_test_seconds > 0 ? parseFloat((s.avg_test_seconds / 3600).toFixed(1)) : 0)
+  const totalData = devData.map((v, i) => parseFloat((v + testData[i]).toFixed(1)))
+  timeChartInstance.setOption({
+    tooltip: { trigger: 'axis', backgroundColor: '#1A1A2E', borderColor: 'transparent', textStyle: { color: '#fff' }, formatter: tooltipFormatter },
+    legend: { show: false },
+    grid: { left: '3%', right: '4%', bottom: '3%', top: '12%', containLabel: true },
+    xAxis: { type: 'category', data: xData, axisLabel: { fontSize: 12, color: '#666' } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 12, color: '#666', formatter: '{value}h' } },
+    series: [
+      {
+        name: 'Dev',
+        type: 'bar',
+        stack: 'time',
+        data: devData,
+        itemStyle: { color: 'rgba(20, 184, 166, 0.35)', borderRadius: [0, 0, 0, 0] },
+        barWidth: '30%',
+      },
+      {
+        name: 'Test',
+        type: 'bar',
+        stack: 'time',
+        data: testData,
+        itemStyle: { color: 'rgba(249, 115, 22, 0.35)', borderRadius: [4, 4, 0, 0] },
+        label: { show: true, position: 'top', color: '#666', fontSize: 16, formatter: (p: any) => totalData[p.dataIndex] > 0 ? totalData[p.dataIndex] + 'h' : '' },
+      },
+      {
+        name: 'Dev趋势',
+        type: 'line',
+        data: devData,
+        smooth: true,
+        lineStyle: { color: '#14B8A6', width: 3 },
+        itemStyle: { color: '#14B8A6' },
+      },
+      {
+        name: 'Test趋势',
+        type: 'line',
+        data: testData,
+        smooth: true,
+        lineStyle: { color: '#F97316', width: 3 },
+        itemStyle: { color: '#F97316' },
+      },
+    ]
+  })
+  nextTick(() => {
+    timeChartInstance?.resize()
+  })
 }
 
 const reopenDialogVisible = ref(false)
@@ -267,12 +274,12 @@ async function openReopenBySprint(sprintId: number) {
 }
 
 const projects = ref<ProjectOption[]>([])
-const loadingProjectsForMetrics = ref(false)
 
 async function loadProjectsForMetrics() {
   loadingProjectsForMetrics.value = true
   try {
     const res = await reportsApi.getProjects()
+    projects.value = res
     if (res.length > 0) {
       selectedProjectForMetrics.value = res[0].id
     }
@@ -291,6 +298,7 @@ watch(selectedProjectForMetrics, (newVal) => {
 
 onMounted(() => {
   loadProjectsForMetrics()
+  window.addEventListener('resize', handleChartsResize)
 })
 
 onBeforeUnmount(() => {
@@ -298,8 +306,7 @@ onBeforeUnmount(() => {
   storyChartInstance?.dispose()
   bugChartInstance?.dispose()
   reopenChartInstance?.dispose()
-  devTimeChartInstance?.dispose()
-  testTimeChartInstance?.dispose()
+  timeChartInstance?.dispose()
 })
 </script>
 
@@ -309,7 +316,7 @@ onBeforeUnmount(() => {
     <div class="page-header page-enter">
       <div class="filter-group">
         <div class="filter-item">
-          <label class="filter-label">项目</label>
+          <label class="filter-label">选择项目</label>
           <el-select
             v-model="selectedProjectForMetrics"
             placeholder="请选择项目"
@@ -331,15 +338,10 @@ onBeforeUnmount(() => {
     <div class="metrics-grid page-enter" style="animation-delay: 0.06s">
       <div class="metrics-row">
         <!-- 故事数 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': storyChartFullscreen }]">
+        <div class="metric-card">
           <div class="metric-card-header">
             <span class="metric-card-title">故事数</span>
-            <el-button
-              :icon="storyChartFullscreen ? 'Close' : 'FullScreen'"
-              circle
-              size="small"
-              @click="toggleFullscreen('story')"
-            />
+            <span class="chart-legend"><i class="legend-dot" style="background:#6366F1"></i>故事数</span>
           </div>
           <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
             <div ref="storyChartRef" class="metric-container"></div>
@@ -348,17 +350,10 @@ onBeforeUnmount(() => {
         </div>
 
         <!-- 故障数 - 折线图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': bugChartFullscreen }]">
+        <div class="metric-card">
           <div class="metric-card-header">
             <span class="metric-card-title">故障数</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="bugChartFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('bug')"
-              />
-            </div>
+            <span class="chart-legend"><i class="legend-dot" style="background:#F97316"></i>故障数</span>
           </div>
           <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
             <div ref="bugChartRef" class="metric-container"></div>
@@ -368,18 +363,11 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="metrics-row">
-        <!-- 故障重开数 - 折线图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': reopenChartFullscreen }]">
+        <!-- 故障重开数 - 柱状图 -->
+        <div class="metric-card">
           <div class="metric-card-header">
             <span class="metric-card-title">故障重开数</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="reopenChartFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('reopen')"
-              />
-            </div>
+            <span class="chart-legend"><i class="legend-dot" style="background:#EC4899"></i>故障重开数</span>
           </div>
           <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
             <div ref="reopenChartRef" class="metric-container"></div>
@@ -387,42 +375,15 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- 故障平均Dev时长 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': devTimeFullscreen }]">
+        <!-- 故障平均时长 - 折线图 -->
+        <div class="metric-card">
           <div class="metric-card-header">
-            <span class="metric-card-title">故障平均Dev时长</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="devTimeFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('dev')"
-              />
-            </div>
+            <span class="metric-card-title">故障平均时长</span>
+            <span class="chart-legend"><i class="legend-dot" style="background:#14B8A6"></i>Dev</span>
+            <span class="chart-legend"><i class="legend-dot" style="background:#F97316"></i>Test</span>
           </div>
           <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="devTimeRef" class="metric-container"></div>
-            <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="metrics-row">
-        <!-- 故障平均Test时长 - 柱状图 -->
-        <div :class="['metric-card', { 'metric-card--fullscreen': testTimeFullscreen }]">
-          <div class="metric-card-header">
-            <span class="metric-card-title">故障平均Test时长</span>
-            <div class="metric-header-actions">
-              <el-button
-                :icon="testTimeFullscreen ? 'Close' : 'FullScreen'"
-                circle
-                size="small"
-                @click="toggleFullscreen('test')"
-              />
-            </div>
-          </div>
-          <div v-loading="loadingProjectMetrics" element-loading-text="加载中..." class="metric-card-body">
-            <div ref="testTimeRef" class="metric-container"></div>
+            <div ref="timeChartRef" class="metric-container"></div>
             <div v-if="projectMetrics.length === 0 && !loadingProjectMetrics" class="metric-empty">暂无数据</div>
           </div>
         </div>
@@ -471,9 +432,9 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .reports-page {
-  max-width: 100%;
-  width: 100%;
-  min-height: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 // ── Page Header ──────────────────────────────────────────────
@@ -482,6 +443,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: flex-end;
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .filter-group {
@@ -490,49 +452,49 @@ onBeforeUnmount(() => {
 }
 
 .filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: flex;           /* 开启 Flex 布局，让子元素横向排列 */
+  align-items: center;     /* 让 label 和下拉框在垂直方向居中对齐 */
+  gap: 12px;               /* 设置 label 和下拉框之间的间距（比用 margin 更方便） */
 }
 
 .filter-label {
-  font-size: 13px;
   font-weight: 600;
   color: var(--ink-secondary);
   letter-spacing: 0.05em;
+  white-space: nowrap; 
+  flex-shrink: 0;
+  margin-left: 20px;
 }
 
 .filter-select {
   width: 220px;
 }
 
-// ── Charts Grid ──────────────────────────────────────────────
-.charts-grid {
-  display: block;
-  width: 100%;
+// ── Metrics Grid ──────────────────────────────────────────────
+.metrics-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   margin-bottom: 24px;
 }
 
-.charts-row {
+.metrics-row {
   display: flex;
   gap: 18px;
-  width: 100%;
+  flex: 1;
 
-  .chart-card {
-    flex: 1;
-    min-width: 0;
+  & + & {
+    margin-top: 18px;
   }
 
   @media (max-width: 1200px) {
     flex-direction: column;
-    
-    .chart-card {
-      width: 100%;
-    }
   }
 }
 
 .metric-card {
+  flex: 1;
+  min-width: 0;
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
   padding: 20px 24px;
@@ -547,125 +509,55 @@ onBeforeUnmount(() => {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
   }
-
-  &.clickable {
-    cursor: pointer;
-  }
 }
 
-.metric-header {
+.metric-card-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
 }
 
-.metric-name {
+.metric-card-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--ink-primary);
   letter-spacing: -0.01em;
 }
 
-.metric-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
+.chart-legend {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #666;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   flex-shrink: 0;
-
-  &.story-icon {
-    background: #EEF2FF;
-    color: #4F46E5;
-  }
-
-  &.bug-icon {
-    background: #FEF2F2;
-    color: #DC2626;
-  }
-
-  &.reopen-icon {
-    background: #FEF3C7;
-    color: #D97706;
-  }
-
-  &.rate-icon {
-    background: #FFF7ED;
-    color: #EA580C;
-  }
-
-  &.dev-icon {
-    background: #EFF6FF;
-    color: #2563EB;
-  }
-
-  &.test-icon {
-    background: #F0FDF4;
-    color: #16A34A;
-  }
 }
 
-.metric-value-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
+.metric-card-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
 }
 
-.metric-sub {
-  font-size: 13px;
-  color: var(--ink-tertiary);
-  font-weight: 500;
+.metric-container {
+  width: 100%;
+  height: 100%;
+  min-height: 250px;
 }
 
-.metric-value {
-  font-size: 36px;
-  font-weight: 700;
-  color: var(--ink-primary);
-  font-family: 'Sora', sans-serif;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.click-hint {
-  position: absolute;
-  right: 24px;
-  bottom: 20px;
-  font-size: 12px;
-  color: var(--ink-tertiary);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.metric-card.clickable:hover .click-hint {
-  opacity: 1;
-}
-
-// ── Empty State ───────────────────────────────────────────────
-.empty-state {
+.metric-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
-}
-
-// ── Bug List Dialog ─────────────────────────────────────────
-.bug-list-dialog {
-  :deep(.el-dialog__header) {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--bg-muted);
-    margin-right: 0;
-  }
-
-  :deep(.el-dialog__title) {
-    font-family: 'Sora', sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--ink-primary);
-  }
-
-  :deep(.el-table__row:hover td) {
-    background-color: var(--accent-soft) !important;
-  }
+  min-height: 250px;
+  font-size: 14px;
+  color: var(--ink-tertiary);
 }
 </style>

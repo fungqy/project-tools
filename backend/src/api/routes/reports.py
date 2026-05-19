@@ -434,12 +434,16 @@ async def get_project_sprints_metrics(
         jira_project_id = project_row[0]
 
         sprints_query = text("""
-            SELECT sprint_id, sprint_name
-            FROM rdm_sprint
-            WHERE project_id = :jira_project_id
-            GROUP BY sprint_id, sprint_name
-            ORDER BY MAX(enddate) IS NULL DESC, MAX(enddate) DESC, MAX(startdate) DESC
-            LIMIT 20
+            SELECT * FROM (
+                SELECT sprint_id, sprint_name
+                FROM rdm_sprint
+                WHERE project_id = :jira_project_id
+                AND state = 'closed'
+                GROUP BY sprint_id, sprint_name
+                ORDER BY sprint_id desc 
+                LIMIT 7
+            ) AS t 
+            ORDER BY sprint_id asc
         """)
         sprints_result = session.execute(sprints_query, {"jira_project_id": jira_project_id})
         sprints = sprints_result.fetchall()

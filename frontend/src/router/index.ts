@@ -48,7 +48,7 @@ const routes: RouteRecordRaw[] = [
         path: "/screen",
         name: "Screen",
         component: () => import("@/views/screen/Screen.vue"),
-        meta: { title: "文档生成", icon: "FullScreen" },
+        meta: { title: "文档导入", icon: "FullScreen" },
     },
 ];
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { reportsApi, type BugDetailResponse, type BugListItem } from '@/api/reports'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -102,16 +102,42 @@ function renderPriorityChart() {
   }
   const total = priorityChartData.value.reduce((sum, item) => sum + item.value, 0)
   chartInstance.setOption({
-    tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
+    tooltip: { 
+      trigger: 'item', 
+      backgroundColor: '#1A1A2E', 
+      borderColor: 'transparent', 
+      padding: [10, 16], 
+      textStyle: { color: '#fff', fontSize: 20 }, 
+      formatter: '{b}: {c} ({d}%)' 
+    },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
+      type: 'pie', 
+      radius: ['55%', '80%'], 
+      center: ['50%', '50%'], 
+      avoidLabelOverlap: true,
       itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
       label: { show: false },
       emphasis: { scale: true, scaleSize: 8, label: { show: false } },
-      data: priorityChartData.value.map(item => ({ name: item.name, value: item.value, itemStyle: { color: PRIORITY_COLORS[item.name] || '#9CA3AF' } })),
+      data: priorityChartData.value.map(item => ({ 
+        name: item.name, 
+        value: item.value, 
+        itemStyle: { color: PRIORITY_COLORS[item.name] || '#9CA3AF' } 
+      })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{ 
+      type: 'text', 
+      left: 'center', 
+      top: '40%', 
+      style: { 
+        text: `${total}`, 
+        fontSize: 80, 
+        fontWeight: 700, 
+        fill: '#1A1A2E', 
+        textAlign: 'center', 
+        fontFamily: 'Sora, sans-serif' 
+      } 
+    }],
   })
 }
 
@@ -146,13 +172,13 @@ function renderTagChart() {
     tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
+      type: 'pie', radius: ['55%', '80%'], center: ['50%', '50%'], avoidLabelOverlap: true,
       itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
       label: { show: false },
       emphasis: { scale: true, scaleSize: 8, label: { show: false } },
       data: tagChartData.value.map((item, idx) => ({ name: item.name, value: item.value, itemStyle: { color: TAG_COLORS[idx % TAG_COLORS.length] } })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{ type: 'text', left: 'center', top: '40%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
   })
 }
 
@@ -171,13 +197,13 @@ function renderDeveloperChart() {
     tooltip: { trigger: 'item', backgroundColor: '#1A1A2E', borderColor: 'transparent', padding: [10, 16], textStyle: { color: '#fff', fontSize: 20 }, formatter: '{b}: {c} ({d}%)' },
     legend: { show: false },
     series: [{
-      type: 'pie', radius: ['55%', '80%'], center: ['50%', '45%'], avoidLabelOverlap: true,
+      type: 'pie', radius: ['55%', '80%'], center: ['50%', '50%'], avoidLabelOverlap: true,
       itemStyle: { borderRadius: 8, borderColor: '#F7F6F3', borderWidth: 3 },
       label: { show: false },
       emphasis: { scale: true, scaleSize: 8, label: { show: false } },
       data: developerChartData.value.map((item, idx) => ({ name: item.name, value: item.value, itemStyle: { color: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] } })),
     }],
-    graphic: [{ type: 'text', left: 'center', top: '36%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
+    graphic: [{ type: 'text', left: 'center', top: '40%', style: { text: `${total}`, fontSize: 80, fontWeight: 700, fill: '#1A1A2E', textAlign: 'center', fontFamily: 'Sora, sans-serif' } }],
   })
 }
 
@@ -325,15 +351,14 @@ function toggleBugDetailFullscreen() {
   bugDetailFullscreen.value = !bugDetailFullscreen.value
 }
 
-function onDialogVisibleChange(val: boolean) {
-  emit('update:visible', val)
+watch(() => props.visible, (val) => {
   if (val) {
     window.addEventListener('resize', handleChartsResize)
     loadBugDetails()
   } else {
     onBugDialogClose()
   }
-}
+})
 </script>
 
 <template>
@@ -344,62 +369,69 @@ function onDialogVisibleChange(val: boolean) {
     class="bug-detail-dialog"
     fullscreen
     align-center
-    @update:model-value="onDialogVisibleChange"
+    @update:model-value="emit('update:visible', $event)"
   >
-    <div v-loading="loadingBugDetail" class="bug-detail-content" v-if="bugDetail">
+    <div v-loading="loadingBugDetail" class="bug-detail-content">
+      <template v-if="bugDetail">
       <div class="charts-row" v-if="priorityChartData.length > 0 || tagChartData.length > 0 || developerChartData.length > 0">
         <div class="chart-card" v-if="priorityChartData.length > 0">
-          <div class="chart-card-header">
+          <div class="chart-main">
             <span class="chart-card-title">级别分布</span>
-            <div class="chart-legend">
-              <div
-                v-for="item in priorityChartData"
-                :key="item.name"
-                class="legend-item"
-              >
-                <span class="legend-dot" :style="{ background: PRIORITY_COLORS[item.name] || '#9CA3AF' }"></span>
-                <span class="legend-label">{{ item.name }}</span>
-                <span class="legend-value">{{ item.value }}</span>
-              </div>
+            <div class="chart-body">
+              <div ref="priorityChartRef" class="chart-container"></div>
             </div>
           </div>
-          <div ref="priorityChartRef" class="chart-container"></div>
+          <div class="chart-legend">
+            <div
+              v-for="item in priorityChartData"
+              :key="item.name"
+              class="legend-item"
+            >
+              <span class="legend-dot" :style="{ background: PRIORITY_COLORS[item.name] || '#9CA3AF' }"></span>
+              <span class="legend-label">{{ item.name }}</span>
+              <span class="legend-value">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="chart-card" v-if="tagChartData.length > 0">
-          <div class="chart-card-header">
+          <div class="chart-main">
             <span class="chart-card-title">原因分布</span>
-            <div class="chart-legend">
-              <div
-                v-for="(item, idx) in tagChartData"
-                :key="item.name"
-                class="legend-item"
-              >
-                <span class="legend-dot" :style="{ background: TAG_COLORS[idx % TAG_COLORS.length] }"></span>
-                <span class="legend-label">{{ item.name }}</span>
-                <span class="legend-value">{{ item.value }}</span>
-              </div>
+            <div class="chart-body">
+              <div ref="tagChartRef" class="chart-container"></div>
             </div>
           </div>
-          <div ref="tagChartRef" class="chart-container"></div>
+          <div class="chart-legend">
+            <div
+              v-for="(item, idx) in tagChartData"
+              :key="item.name"
+              class="legend-item"
+            >
+              <span class="legend-dot" :style="{ background: TAG_COLORS[idx % TAG_COLORS.length] }"></span>
+              <span class="legend-label">{{ item.name }}</span>
+              <span class="legend-value">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="chart-card" v-if="developerChartData.length > 0">
-          <div class="chart-card-header">
+          <div class="chart-main">
             <span class="chart-card-title">人员分布</span>
-            <div class="chart-legend">
-              <div
-                v-for="(item, idx) in developerChartData"
-                :key="item.name"
-                class="legend-item"
-              >
-                <span class="legend-dot" :style="{ background: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] }"></span>
-                <span class="legend-label">{{ item.name }}</span>
-                <span class="legend-value">{{ item.value }}</span>
-              </div>
+            <div class="chart-body">
+              <div ref="developerChartRef" class="chart-container"></div>
             </div>
           </div>
-          <div ref="developerChartRef" class="chart-container"></div>
+          <div class="chart-legend">
+            <div
+              v-for="(item, idx) in developerChartData"
+              :key="item.name"
+              class="legend-item"
+            >
+              <span class="legend-dot" :style="{ background: DEVELOPER_COLORS[idx % DEVELOPER_COLORS.length] }"></span>
+              <span class="legend-label">{{ item.name }}</span>
+              <span class="legend-value">{{ item.value }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -419,7 +451,7 @@ function onDialogVisibleChange(val: boolean) {
         <div :class="['table-container', { 'table-container--fullscreen': bugDetailFullscreen }]">
           <div v-if="!bugDetailFullscreen" class="section-title-row">
             <h3 class="section-title">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
               分布明细
             </h3>
             <el-button
@@ -534,9 +566,10 @@ function onDialogVisibleChange(val: boolean) {
           </el-table>
         </div>
       </div>
-    </div>
-    <div v-else-if="!loadingBugDetail" class="empty-dialog">
-      <el-empty description="暂无故障数据" />
+      </template>
+      <div v-else-if="!loadingBugDetail" class="empty-dialog">
+        <el-empty description="暂无故障数据" />
+      </div>
     </div>
 
     <el-dialog
@@ -554,12 +587,19 @@ function onDialogVisibleChange(val: boolean) {
           stripe
           style="width: 100%"
         >
-          <el-table-column prop="index" label="序号" width="80" align="center" />
+          <el-table-column prop="index" label="序号" width="85" align="center" />
           <el-table-column prop="issue_key" label="编号" width="130" />
           <el-table-column prop="issue_name" label="名称" min-width="180" show-overflow-tooltip />
           <el-table-column prop="developer" label="开发" width="100" />
           <el-table-column prop="reason_analysis" label="原因及分析" width="120" />
-          <el-table-column prop="priority" label="级别" width="80" align="center" />
+          <el-table-column prop="priority" label="级别" width="90" align="center">
+            <template #default="{ row }">
+              <span
+                class="priority-tag"
+                :style="{ color: PRIORITY_COLORS[row.priority] || '#6B7280' }"
+              >{{ row.priority }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="tag" label="标签" width="100" align="center" />
           <el-table-column prop="is_typical" label="是否典型" width="90" align="center" />
           <el-table-column prop="source" label="来源" width="80" align="center" />
@@ -597,8 +637,8 @@ function onDialogVisibleChange(val: boolean) {
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--bg-muted);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  gap: 16px;
   min-height: 280px;
   transition: box-shadow 0.2s ease, transform 0.2s ease;
   width: 100%;
@@ -609,57 +649,48 @@ function onDialogVisibleChange(val: boolean) {
     transform: translateY(-2px);
   }
 
-  &.chart-card--fullscreen {
-    position: fixed;
-    top: 60px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: calc(100vh - 60px);
-    z-index: 9999;
-    border-radius: 0;
-    padding: 20px;
-    min-height: unset;
+  .chart-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .chart-card-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink-primary);
+    font-family: 'Sora', sans-serif;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+  }
+
+  .chart-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .chart-container {
+    width: 100%;
+    height: 220px;
+  }
+
+  .chart-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 160px;
+    flex-shrink: 0;
+    overflow-y: auto;
   }
 }
 
-.chart-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-}
-
-.chart-card-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink-primary);
-  font-family: 'Sora', sans-serif;
-  letter-spacing: -0.01em;
-}
-
-.chart-header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.chart-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.chart-container {
-  flex: 1;
-  min-height: 200px;
-  height: 100%;
-  width: 100%;
-  min-width: 0;
-}
-
-.chart-empty {
+.legend-item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -698,6 +729,7 @@ function onDialogVisibleChange(val: boolean) {
 .table-section {
   flex: 1;
   min-width: 0;
+  margin-top: 24px;
 }
 
 .bug-table {
@@ -746,8 +778,8 @@ function onDialogVisibleChange(val: boolean) {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 500;
   color: var(--ink-primary);
   font-family: 'Sora', sans-serif;
   margin: 0 0 14px;
@@ -926,23 +958,52 @@ function onDialogVisibleChange(val: boolean) {
   justify-content: center;
   min-height: 400px;
 }
+</style>
 
+<style lang="scss">
 .bug-list-dialog {
-  :deep(.el-dialog__header) {
+  .el-dialog__header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--bg-muted);
     margin-right: 0;
   }
 
-  :deep(.el-dialog__title) {
+  .el-dialog__title {
     font-family: 'Sora', sans-serif;
     font-weight: 600;
     font-size: 15px;
     color: var(--ink-primary);
   }
 
-  :deep(.el-table__row:hover td) {
+  .el-table__header th {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+  }
+
+  .el-table__row td {
+    font-size: 16px;
+  }
+
+  .el-table__row:hover td {
     background-color: var(--accent-soft) !important;
   }
+
+  .priority-tag {
+    font-weight: 600;
+    font-size: 13px;
+  }
+}
+
+.el-tooltip__content {
+  font-size: 14px !important;
+}
+
+.el-tooltip__popper {
+  font-size: 14px !important;
+}
+
+.el-popper.is-dark {
+  font-size: 25px !important;
 }
 </style>

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -12,6 +14,18 @@ def set_default_auth(user: str, token: str, url: str = "http://rdm.zvos.zoomlion
     """设置默认认证配置"""
     global DEFAULT_AUTH_CONFIG
     DEFAULT_AUTH_CONFIG = AuthConfig(user=user, token=token, url=url)
+
+
+def _get_auth_config(session, user_id: int) -> Optional[AuthConfig]:
+    """根据用户ID获取JIRA认证配置"""
+    from db.models import JiraAuthConfig
+
+    auth = session.query(JiraAuthConfig).filter(
+        JiraAuthConfig.user_id == user_id
+    ).first()
+    if auth:
+        return AuthConfig(user=auth.jira_user, token=auth.jira_token, url=auth.jira_url)
+    return None
 
 
 @dataclass
@@ -56,6 +70,70 @@ class Sprint:
         self.enddate = to_beijing_mysql_datetime(self.enddate)
         self.activated_date = to_beijing_mysql_datetime(self.activated_date)
         self.complete_date = to_beijing_mysql_datetime(self.complete_date)
+
+    @classmethod
+    def from_jira_id(cls, sprint_id: str) -> "Sprint":
+        """根据 sprint_id 从数据库构造 Sprint 实例"""
+        from sqlalchemy import text
+
+        from db.database import get_session
+
+        session = get_session()
+        try:
+            query = text(
+                """
+                SELECT
+                    rs.sprint_id, rs.sprint_name, rs.startdate, rs.enddate,
+                    rs.state, rs.project_id,
+                    pc.board_id, pc.board_name, pc.project_name, pc.created_by
+                FROM rdm_sprint rs
+                JOIN project_configs pc ON rs.project_id = pc.project_id
+                WHERE rs.sprint_id = :sprint_id
+                LIMIT 1
+            """
+            )
+            row = session.execute(query, {"sprint_id": sprint_id}).fetchone()
+
+            if not row:
+                raise ValueError(f"未找到 sprint_id={sprint_id} 的 Sprint 数据")
+
+            auth_config = _get_auth_config(session, row.created_by)
+
+            return cls(
+                board_id=str(row.board_id),
+                board_name=str(row.board_name),
+                project_id=str(row.project_id),
+                project_name=str(row.project_name),
+                sprint_id=str(row.sprint_id),
+                origin_sprint_name=row.sprint_name or "",
+                sprint_name=row.sprint_name or "",
+                short_sprint_name=row.sprint_name or "",
+                startdate=row.startdate,
+                enddate=row.enddate,
+                activated_date=None,
+                complete_date=None,
+                state=row.state or "",
+                goal=None,
+                auth_config=auth_config,
+            )
+        finally:
+            session.close()
+
+    def to_dict(self) -> dict:
+        return {
+            "sprint_id": self.sprint_id,
+            "sprint_name": self.sprint_name,
+            "short_sprint_name": self.short_sprint_name,
+            "origin_sprint_name": self.origin_sprint_name,
+            "board_id": self.board_id,
+            "board_name": self.board_name,
+            "project_id": self.project_id,
+            "project_name": self.project_name,
+            "startdate": self.startdate,
+            "enddate": self.enddate,
+            "state": self.state,
+            "goal": self.goal,
+        }
 
     @property
     def auth(self) -> Optional[AuthConfig]:
